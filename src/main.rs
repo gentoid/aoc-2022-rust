@@ -1,5 +1,6 @@
+mod day_01;
 mod utils;
 
 fn main() {
-    println!("Hello, world!");
+    println!("01 / 01: {}", day_01::part_1());
 }
