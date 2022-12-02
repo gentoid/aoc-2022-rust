@@ -52,12 +52,8 @@ fn score((opponent_shape, my_shape): (Shape, Shape)) -> u32 {
     };
 
     let score_2 = match (my_shape, opponent_shape) {
-        (Rock, Paper) => LOST,
-        (Rock, Scissors) => WON,
-        (Paper, Rock) => WON,
-        (Paper, Scissors) => LOST,
-        (Scissors, Rock) => LOST,
-        (Scissors, Paper) => WON,
+        (Rock, Paper) | (Paper, Scissors) | (Scissors, Rock) => LOST,
+        (Rock, Scissors) | (Paper, Rock) | (Scissors, Paper) => WON,
         (_, _) => DRAW,
     };
 
@@ -81,12 +77,9 @@ fn score_updated((opponent_shape, my_shape): (Shape, Shape)) -> u32 {
     };
 
     let my_shape = match (&opponent_shape, strategy) {
-        (Rock, ToLose) => Scissors,
-        (Rock, ToWin) => Paper,
-        (Paper, ToLose) => Rock,
-        (Paper, ToWin) => Scissors,
-        (Scissors, ToLose) => Paper,
-        (Scissors, ToWin) => Rock,
+        (Rock, ToLose) | (Paper, ToWin) => Scissors,
+        (Rock, ToWin) | (Scissors, ToLose) => Paper,
+        (Paper, ToLose) | (Scissors, ToWin) => Rock,
         (shape, ToDraw) => shape.clone(),
     };
 
