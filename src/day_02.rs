@@ -3,11 +3,17 @@ use regex::Regex;
 use crate::utils::read_lines;
 
 pub fn part_1() -> u32 {
-    read_lines(2).iter().map(|line| score(parse_line(&line))).sum()
+    read_lines(2)
+        .iter()
+        .map(|line| score(parse_line(&line)))
+        .sum()
 }
 
 pub fn part_2() -> u32 {
-    read_lines(2).iter().map(|line| score_updated(parse_line(&line))).sum()
+    read_lines(2)
+        .iter()
+        .map(|line| score_updated(parse_line(&line)))
+        .sum()
 }
 
 #[derive(Clone, PartialEq)]
