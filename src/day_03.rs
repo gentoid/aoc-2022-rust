@@ -30,18 +30,8 @@ fn find_common_item(chunk: &[String]) -> Vec<char> {
 
     chars
         .into_iter()
-        .filter(|char| contains_char(&chunk[0], &char))
+        .filter(|char| chunk[0].chars().find(|inner_char| inner_char == char).is_some())
         .collect()
-}
-
-fn contains_char(line: &str, lookup_char: &char) -> bool {
-    for char in line.chars() {
-        if &char == lookup_char {
-            return true;
-        }
-    }
-
-    false
 }
 
 fn priority(char: &Vec<char>) -> u32 {
