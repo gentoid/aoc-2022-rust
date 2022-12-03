@@ -7,6 +7,15 @@ pub fn part_1() -> u32 {
         .sum()
 }
 
+pub fn part_2() -> u32 {
+    let lines = read_lines(3);
+
+    lines
+        .chunks(3)
+        .map(|chunk| priority(&find_common_item_in_chunk(chunk)))
+        .sum()
+}
+
 fn parse_line(line: &String) -> (String, String) {
     let length = line.len();
     (line[..length / 2].to_owned(), line[length / 2..].to_owned())
@@ -34,4 +43,20 @@ fn priority(char: &Option<char>) -> u32 {
     } else {
         0
     }
+}
+
+fn find_common_item_in_chunk(chunk: &[String]) -> Option<char> {
+    assert_eq!(chunk.len(), 3);
+
+    for char_1 in chunk[0].chars() {
+        for char_2 in chunk[1].chars() {
+            for char_3 in chunk[2].chars() {
+                if char_1 == char_2 && char_1 == char_3 {
+                    return Some(char_1);
+                }
+            }
+        }
+    }
+
+    None
 }

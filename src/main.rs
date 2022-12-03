@@ -9,4 +9,5 @@ fn main() {
     println!("02 / 01: {}", day_02::part_1());
     println!("02 / 02: {}", day_02::part_2());
     println!("03 / 01: {}", day_03::part_1());
+    println!("03 / 02: {}", day_03::part_2());
 }
