@@ -10,6 +10,14 @@ pub fn part_1() -> usize {
         .count()
 }
 
+pub fn part_2() -> usize {
+    read_lines(4)
+        .iter()
+        .map(parse_line)
+        .filter(|ranges| overlapped(&ranges))
+        .count()
+}
+
 struct Range {
     from: u32,
     to: u32,
@@ -18,6 +26,14 @@ struct Range {
 impl Range {
     pub fn covered_by(&self, other: &Range) -> bool {
         other.from <= self.from && other.to >= self.to
+    }
+
+    pub fn overlap_by(&self, other: &Range) -> bool {
+        Self::in_range(self.from, other) || Self::in_range(self.to, other)
+    }
+
+    fn in_range(num: u32, range: &Range) -> bool {
+        num >= range.from && num <= range.to
     }
 }
 
@@ -39,4 +55,8 @@ fn parse_line(line: &String) -> (Range, Range) {
 
 fn fully_covered(ranges: &(Range, Range)) -> bool {
     ranges.0.covered_by(&ranges.1) || ranges.1.covered_by(&ranges.0)
+}
+
+fn overlapped(ranges: &(Range, Range)) -> bool {
+    ranges.0.overlap_by(&ranges.1) || ranges.1.overlap_by(&ranges.0)
 }
