@@ -2,13 +2,18 @@ use crate::utils::read_input_to_string;
 
 pub fn part_1() -> usize {
     let input = read_input_to_string(6);
-    find_start(&input)
+    find_start(&input, 4)
 }
 
-fn find_start(line: &str) -> usize {
-    for index in 0..line.len() - 4 {
-        if !contains_dublicates(&line[index..index+4]) {
-            return index + 4;
+pub fn part_2() -> usize {
+    let input = read_input_to_string(6);
+    find_start(&input, 14)
+}
+
+fn find_start(line: &str, uniques: usize) -> usize {
+    for index in 0..line.len() - uniques {
+        if !contains_dublicates(&line[index..index + uniques]) {
+            return index + uniques;
         }
     }
 
