@@ -1,16 +1,22 @@
 use std::str::Chars;
 
 use itertools::{Chunk, Itertools};
+use regex::Regex;
 
 use crate::utils::read_lines;
 
-pub fn part_1() -> u32 {
+pub fn part_1() -> String {
     let (stacks, instructions) = split_into_parts(read_lines(5));
-    let stacks = parse_stacks(stacks);
+    let mut stacks = parse_stacks(stacks);
 
-    println!("{:?}", stacks);
+    for instruction in instructions.iter().map(parse_instruction) {
+        stacks = move_crates(stacks, instruction);
+    }
 
-    0
+    stacks
+        .iter()
+        .map(|stack| stack.last().unwrap_or(&'_').to_owned())
+        .collect()
 }
 
 fn split_into_parts(lines: Vec<String>) -> (Vec<String>, Vec<String>) {
@@ -60,4 +66,34 @@ fn stack_value(mut value: Chunk<Chars>) -> Option<char> {
     value
         .nth(1)
         .and_then(|value| if value == ' ' { None } else { Some(value) })
+}
+
+struct Instruction {
+    quantity: usize,
+    from: usize,
+    to: usize,
+}
+
+fn parse_instruction(line: &String) -> Instruction {
+    let template = Regex::new(r"^move (\d+) from (\d+) to (\d+)$").unwrap();
+    let captures = template.captures(line).unwrap();
+
+    Instruction {
+        quantity: captures[1].parse::<usize>().unwrap(),
+        from: captures[2].parse::<usize>().unwrap(),
+        to: captures[3].parse::<usize>().unwrap(),
+    }
+}
+
+fn move_crates(mut stacks: Vec<Vec<char>>, instruction: Instruction) -> Vec<Vec<char>> {
+    let mut from = stacks[instruction.from - 1].clone();
+    let to = &mut stacks[instruction.to - 1];
+
+    for _ in 0..instruction.quantity {
+        to.push(from.pop().unwrap());
+    }
+
+    stacks[instruction.from - 1] = from;
+
+    stacks
 }
