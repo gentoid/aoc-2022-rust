@@ -11,13 +11,10 @@ pub fn part_2() -> usize {
 }
 
 fn find_start(line: &str, uniques: usize) -> usize {
-    for index in 0..line.len() - uniques {
-        if !contains_duplicates(&line[index..index + uniques]) {
-            return index + uniques;
-        }
-    }
-
-    0
+    (0..line.len() - uniques)
+        .find(|index| !contains_duplicates(&line[*index..*index + uniques]))
+        .map(|index| index + uniques)
+        .unwrap_or(0)
 }
 
 fn contains_duplicates(line: &str) -> bool {
