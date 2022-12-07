@@ -6,11 +6,19 @@ use regex::Regex;
 use crate::utils::read_lines;
 
 pub fn part_1() -> String {
+    process(false)
+}
+
+pub fn part_2() -> String {
+    process(true)
+}
+
+fn process(all_at_once: bool) -> String {
     let (stacks, instructions) = split_into_parts(read_lines(5));
     let mut stacks = parse_stacks(stacks);
 
     for instruction in instructions.iter().map(parse_instruction) {
-        stacks = move_crates(stacks, instruction);
+        stacks = move_crates(stacks, instruction, all_at_once);
     }
 
     stacks
@@ -85,15 +93,23 @@ fn parse_instruction(line: &String) -> Instruction {
     }
 }
 
-fn move_crates(mut stacks: Vec<Vec<char>>, instruction: Instruction) -> Vec<Vec<char>> {
-    let mut from = stacks[instruction.from - 1].clone();
-    let to = &mut stacks[instruction.to - 1];
+fn move_crates(
+    mut stacks: Vec<Vec<char>>,
+    instruction: Instruction,
+    all_at_once: bool,
+) -> Vec<Vec<char>> {
+    let from = &mut stacks[instruction.from - 1];
+    let mut tmp = vec![];
 
     for _ in 0..instruction.quantity {
-        to.push(from.pop().unwrap());
+        tmp.push(from.pop().unwrap());
     }
 
-    stacks[instruction.from - 1] = from;
+    if all_at_once {
+        tmp.reverse();
+    }
+
+    stacks[instruction.to - 1].extend(tmp);
 
     stacks
 }
