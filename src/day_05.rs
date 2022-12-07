@@ -3,7 +3,7 @@ use std::str::Chars;
 use itertools::{Chunk, Itertools};
 use regex::Regex;
 
-use crate::utils::read_lines;
+use crate::utils::{read_input_to_string, string_to_lines};
 
 pub fn part_1() -> String {
     process(false)
@@ -14,7 +14,7 @@ pub fn part_2() -> String {
 }
 
 fn process(all_at_once: bool) -> String {
-    let (stacks, instructions) = split_into_parts(read_lines(5));
+    let (stacks, instructions) = split_into_parts(read_input_to_string(5));
     let mut stacks = parse_stacks(stacks);
 
     for instruction in instructions.iter().map(parse_instruction) {
@@ -27,26 +27,11 @@ fn process(all_at_once: bool) -> String {
         .collect()
 }
 
-fn split_into_parts(lines: Vec<String>) -> (Vec<String>, Vec<String>) {
-    let mut stacks = vec![];
-    let mut instructions = vec![];
+fn split_into_parts(input: String) -> (Vec<String>, Vec<String>) {
+    let parts = input.split("\n\n").collect_vec();
+    assert_eq!(parts.len(), 2);
 
-    let mut stacks_data = true;
-
-    for line in lines.into_iter() {
-        if line.is_empty() {
-            stacks_data = false;
-            continue;
-        }
-
-        if stacks_data {
-            stacks.push(line);
-        } else {
-            instructions.push(line);
-        }
-    }
-
-    (stacks, instructions)
+    (string_to_lines(parts[0]), string_to_lines(parts[1]))
 }
 
 fn parse_stacks(mut lines: Vec<String>) -> Vec<Vec<char>> {
