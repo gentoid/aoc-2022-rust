@@ -98,12 +98,9 @@ fn move_crates(
     instruction: Instruction,
     all_at_once: bool,
 ) -> Vec<Vec<char>> {
-    let from = &mut stacks[instruction.from - 1];
-    let mut tmp = vec![];
-
-    for _ in 0..instruction.quantity {
-        tmp.push(from.pop().unwrap());
-    }
+    let mut tmp = (0..instruction.quantity)
+        .map(|_| stacks[instruction.from - 1].pop().unwrap())
+        .collect_vec();
 
     if all_at_once {
         tmp.reverse();
