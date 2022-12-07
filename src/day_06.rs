@@ -21,17 +21,7 @@ fn find_start(line: &str, uniques: usize) -> usize {
 }
 
 fn contains_dublicates(line: &str) -> bool {
-    for (index, char) in line.char_indices() {
-        let slice = &line[index + 1..];
-
-        if slice.is_empty() {
-            return false;
-        }
-
-        if slice.find(char).is_some() {
-            return true;
-        }
-    }
-
-    false
+    line.char_indices()
+        .find(|(index, char)| line[index + 1..].find(*char).is_some())
+        .is_some()
 }
