@@ -11,6 +11,17 @@ pub fn part_1() -> usize {
         .sum()
 }
 
+pub fn part_2() -> usize {
+    let data = Data::new(read_lines(8).iter().map(parse_line).collect_vec());
+
+    *(data
+        .scenic_scores()
+        .iter()
+        .map(|column| column.iter().max().unwrap())
+        .max()
+        .unwrap())
+}
+
 fn parse_line(line: &String) -> Vec<u32> {
     line.chars()
         .map(|char| char.to_digit(10).unwrap())
@@ -51,13 +62,47 @@ impl Data {
         output
     }
 
+    fn scenic_scores(&self) -> Vec<Vec<usize>> {
+        let x_len = self.data[0].len();
+        let y_len = self.data.len();
+        let mut output = vec![vec![0; x_len]; y_len];
+
+        for y in 0..y_len {
+            for x in 0..x_len {
+                let coord = Coord { x, y };
+
+                let x1 = x - self.with_x_range(&coord, x, 0).unwrap_or(0);
+                let x2 = self.with_x_range(&coord, x + 1, x_len).unwrap_or(x_len - 1) - x;
+                let y1 = y - self.with_y_range(&coord, y, 0).unwrap_or(0);
+                let y2 = self.with_y_range(&coord, y + 1, y_len).unwrap_or(y_len - 1) - y;
+
+                output[y][x] = x1 * x2 * y1 * y2;
+            }
+        }
+
+        output
+    }
+
     fn with_x_range(&self, coord: &Coord, from: usize, to: usize) -> Option<usize> {
-        let tree = self.data[coord.x][coord.y];
-        (from..to).find(|x| self.data[*x][coord.y] >= tree)
+        let closure = |x: &usize| self.data[coord.y][*x] >= self.data[coord.y][coord.x];
+
+        self.find(from, to, closure)
     }
 
     fn with_y_range(&self, coord: &Coord, from: usize, to: usize) -> Option<usize> {
-        let tree = self.data[coord.x][coord.y];
-        (from..to).find(|y| self.data[coord.x][*y] >= tree)
+        let closure = |y: &usize| self.data[*y][coord.x] >= self.data[coord.y][coord.x];
+
+        self.find(from, to, closure)
+    }
+
+    fn find<F>(&self, from: usize, to: usize, closure: F) -> Option<usize>
+    where
+        F: Fn(&usize) -> bool,
+    {
+        if from < to {
+            (from..to).find(closure)
+        } else {
+            (to..from).rev().find(closure)
+        }
     }
 }
