@@ -1,20 +1,45 @@
 use std::collections::HashMap;
 
+use itertools::Itertools;
 use regex::Regex;
 
 use crate::utils::read_lines;
 
 pub fn part_1() -> u32 {
-    let mut fs = Fs::new();
-
-    for line in read_lines(7).iter().map(parse_line) {
-        fs.process_line(line);
-    }
+    let fs = prepare_fs();
 
     fs.dirs
         .iter()
         .map(|dir| dir.size(&fs))
-        .filter(|size| *size <= 100000).sum()
+        .filter(|size| *size <= 100000)
+        .sum()
+}
+
+pub fn part_2() -> u32 {
+    let disk_space = 70000000;
+    let need_to_have_space = 30000000;
+    let fs = prepare_fs();
+
+    let used_space = fs.dirs[0].size(&fs);
+    assert!(disk_space >= used_space);
+
+    let need_to_free_up_space = need_to_have_space - (disk_space - used_space);
+
+    let mut all_sizes = fs.dirs.iter().map(|dir| dir.size(&fs)).collect_vec();
+
+    all_sizes.sort();
+
+    all_sizes
+        .into_iter()
+        .find(|size| *size >= need_to_free_up_space)
+        .unwrap_or(0)
+}
+
+fn prepare_fs() -> Fs {
+    read_lines(7)
+        .iter()
+        .map(parse_line)
+        .fold(Fs::new(), |fs, line| fs.process_line(line))
 }
 
 #[derive(Debug)]
@@ -82,11 +107,13 @@ impl Fs {
         }
     }
 
-    pub fn process_line(&mut self, line: Line) {
+    pub fn process_line(mut self, line: Line) -> Self {
         match line {
             Line::Cmd(cmd) => self.process_cmd(cmd),
             Line::Output(output) => self.process_output(output),
         }
+
+        self
     }
 
     fn process_cmd(&mut self, cmd: Command) {
