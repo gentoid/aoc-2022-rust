@@ -11,9 +11,10 @@ pub fn part_1() -> u32 {
         fs.process_line(line);
     }
 
-    println!("FS: {:?}", fs);
-
-    0
+    fs.dirs
+        .iter()
+        .map(|dir| dir.size(&fs))
+        .filter(|size| *size <= 100000).sum()
 }
 
 #[derive(Debug)]
@@ -156,6 +157,17 @@ impl Dir {
             name: "/".to_owned(),
             ..Default::default()
         }
+    }
+
+    pub fn size(&self, fs: &Fs) -> u32 {
+        let files_sizes: u32 = self.files.iter().map(|file| file.size).sum();
+        let dirs_sizes: u32 = self
+            .dirs
+            .values()
+            .map(|dir_index| fs.dirs[*dir_index].size(fs))
+            .sum();
+
+        files_sizes + dirs_sizes
     }
 }
 
