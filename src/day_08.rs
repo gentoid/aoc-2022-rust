@@ -36,47 +36,51 @@ struct Coord {
 #[derive(Debug)]
 struct Data {
     data: Vec<Vec<u32>>,
+    x_len: usize,
+    y_len: usize,
 }
 
 impl Data {
     fn new(data: Vec<Vec<u32>>) -> Self {
-        Self { data }
+        let x_len = data[0].len();
+        let y_len = data.len();
+        Self { data, x_len, y_len }
     }
 
     fn visibility_map(&self) -> Vec<Vec<bool>> {
-        let x_len = self.data.len();
-        let y_len = self.data[0].len();
-        let mut output = vec![vec![true; y_len]; x_len];
-
-        for x in 0..x_len - 1 {
-            for y in 0..y_len - 1 {
-                let coord = Coord { x, y };
-
-                output[x][y] = self.with_x_range(&coord, 0, x).is_none()
-                    || self.with_x_range(&coord, x + 1, x_len).is_none()
-                    || self.with_y_range(&coord, 0, y).is_none()
-                    || self.with_y_range(&coord, y + 1, y_len).is_none();
-            }
-        }
-
-        output
+        self.iterate(true, |_, x1, x2, y1, y2| {
+            x1.is_none() || x2.is_none() || y1.is_none() || y2.is_none()
+        })
     }
 
     fn scenic_scores(&self) -> Vec<Vec<usize>> {
-        let x_len = self.data[0].len();
-        let y_len = self.data.len();
-        let mut output = vec![vec![0; x_len]; y_len];
+        self.iterate(0, |coord, x1, x2, y1, y2| {
+            let x1 = coord.x - x1.unwrap_or(0);
+            let x2 = x2.unwrap_or(self.x_len - 1) - coord.x;
+            let y1 = coord.y - y1.unwrap_or(0);
+            let y2 = y2.unwrap_or(self.y_len - 1) - coord.y;
 
-        for y in 0..y_len {
-            for x in 0..x_len {
+            x1 * x2 * y1 * y2
+        })
+    }
+
+    fn iterate<F, T>(&self, init: T, closure: F) -> Vec<Vec<T>>
+    where
+        T: Default + Clone,
+        F: Fn(&Coord, Option<usize>, Option<usize>, Option<usize>, Option<usize>) -> T,
+    {
+        let mut output = vec![vec![init; self.x_len]; self.y_len];
+
+        for y in 0..self.y_len {
+            for x in 0..self.x_len {
                 let coord = Coord { x, y };
 
-                let x1 = x - self.with_x_range(&coord, x, 0).unwrap_or(0);
-                let x2 = self.with_x_range(&coord, x + 1, x_len).unwrap_or(x_len - 1) - x;
-                let y1 = y - self.with_y_range(&coord, y, 0).unwrap_or(0);
-                let y2 = self.with_y_range(&coord, y + 1, y_len).unwrap_or(y_len - 1) - y;
+                let x1 = self.with_x_range(&coord, x, 0);
+                let x2 = self.with_x_range(&coord, x + 1, self.x_len);
+                let y1 = self.with_y_range(&coord, y, 0);
+                let y2 = self.with_y_range(&coord, y + 1, self.y_len);
 
-                output[y][x] = x1 * x2 * y1 * y2;
+                output[y][x] = closure(&coord, x1, x2, y1, y2);
             }
         }
 
