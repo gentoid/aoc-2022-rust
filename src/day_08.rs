@@ -1,5 +1,3 @@
-use std::ops::Range;
-
 use itertools::Itertools;
 
 use crate::utils::read_lines;
@@ -19,6 +17,11 @@ fn parse_line(line: &String) -> Vec<u32> {
         .collect_vec()
 }
 
+struct Coord {
+    x: usize,
+    y: usize,
+}
+
 #[derive(Debug)]
 struct Data {
     data: Vec<Vec<u32>>,
@@ -36,35 +39,25 @@ impl Data {
 
         for x in 0..x_len - 1 {
             for y in 0..y_len - 1 {
-                let tree = self.data[x][y];
+                let coord = Coord { x, y };
 
-                output[x][y] = self.is_visible_horizontally(tree, y, 0..x)
-                    || self.is_visible_horizontally(tree, y, x + 1..x_len)
-                    || self.is_visible_vertically(tree, x, 0..y)
-                    || self.is_visible_vertically(tree, x, y + 1..y_len);
+                output[x][y] = self.with_x_range(&coord, 0, x).is_none()
+                    || self.with_x_range(&coord, x + 1, x_len).is_none()
+                    || self.with_y_range(&coord, 0, y).is_none()
+                    || self.with_y_range(&coord, y + 1, y_len).is_none();
             }
         }
 
         output
     }
 
-    fn is_visible_horizontally(&self, tree: u32, y: usize, range: Range<usize>) -> bool {
-        for check_tree in range.map(|x| self.data[x][y]) {
-            if check_tree >= tree {
-                return false;
-            }
-        }
-
-        true
+    fn with_x_range(&self, coord: &Coord, from: usize, to: usize) -> Option<usize> {
+        let tree = self.data[coord.x][coord.y];
+        (from..to).find(|x| self.data[*x][coord.y] >= tree)
     }
 
-    fn is_visible_vertically(&self, tree: u32, x: usize, range: Range<usize>) -> bool {
-        for check_tree in range.map(|y| self.data[x][y]) {
-            if check_tree >= tree {
-                return false;
-            }
-        }
-
-        true
+    fn with_y_range(&self, coord: &Coord, from: usize, to: usize) -> Option<usize> {
+        let tree = self.data[coord.x][coord.y];
+        (from..to).find(|y| self.data[coord.x][*y] >= tree)
     }
 }
