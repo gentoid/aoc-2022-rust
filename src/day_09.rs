@@ -3,13 +3,21 @@ use std::collections::{HashMap, HashSet};
 use crate::utils::read_lines;
 
 pub fn part_1() -> usize {
-    let mut rope = Rope::new(2);
+    calculate(2).visited.len()
+}
 
-    for (direction, amount) in read_lines(9).iter().map(parse_line).take(2) {
+pub fn part_2() -> usize {
+    calculate(10).visited.len()
+}
+
+fn calculate(length: usize) -> Rope {
+    let mut rope = Rope::new(length);
+
+    for (direction, amount) in read_lines(9).iter().map(parse_line) {
         rope.process(&direction, amount);
     }
 
-    rope.visited.len()
+    rope
 }
 
 #[derive(Debug)]
@@ -90,29 +98,24 @@ impl Rope {
 
         let mut changed = false;
 
-        if diff.x > 1 {
+        if diff.x.abs() > 1 && diff.y.abs() > 1 {
+            self.rope[index].x += diff.x.signum();
+            self.rope[index].y += diff.y.signum();
+            changed = true;
+        } else if diff.x.abs() > 1 {
+            self.rope[index].x += diff.x.signum();
             self.rope[index].y = self.rope[prev_index].y;
-            self.rope[index].x = self.rope[prev_index].x - 1;
             changed = true;
-        } else if diff.x < -1 {
-            self.rope[index].y = self.rope[prev_index].y;
-            self.rope[index].x = self.rope[prev_index].x + 1;
-            changed = true;
-        } else if diff.y > 1 {
+        } else if diff.y.abs() > 1 {
             self.rope[index].x = self.rope[prev_index].x;
-            self.rope[index].y = self.rope[prev_index].y - 1;
-            changed = true;
-        } else if diff.y < -1 {
-            self.rope[index].x = self.rope[prev_index].x;
-            self.rope[index].y = self.rope[prev_index].y + 1;
+            self.rope[index].y += diff.y.signum();
             changed = true;
         }
 
         if changed {
+            self.process_rest(index + 1);
             visualize(&self, &format!("  >> rest: {index}"));
         }
-
-        self.process_rest(index + 1);
     }
 }
 
