@@ -84,10 +84,7 @@ fn run_instruction(position: usize, instruction: &Instruction) -> (usize, usize)
 
 fn visualize(pixels: &[bool], width: usize) {
     for line in &pixels.iter().chunks(width) {
-        let mut output_line = String::new();
-        for pixel in line {
-            output_line.push(if *pixel { '#' } else { ' ' })
-        }
+        let output_line: String = line.map(|pixel| if *pixel { '#' } else { ' ' }).collect();
         println!("{output_line}");
     }
 }
