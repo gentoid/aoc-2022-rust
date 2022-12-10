@@ -64,15 +64,11 @@ enum Instruction {
 }
 
 fn parse_line(line: &String) -> Instruction {
-    if line == "noop" {
-        return Instruction::Noop;
+    match &line[0..4] {
+        "noop" => Instruction::Noop,
+        "addx" =>Instruction::Add(line[5..].parse::<i32>().unwrap()),
+        _ => unreachable!(),
     }
-
-    if line.starts_with("addx ") {
-        return Instruction::Add(line[5..].parse::<i32>().unwrap());
-    }
-
-    unreachable!();
 }
 
 fn run_instruction(position: usize, instruction: &Instruction) -> (usize, usize) {
