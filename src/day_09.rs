@@ -70,25 +70,37 @@ impl Rope {
             Right => self.rope[0].x += 1,
         }
 
-        let diff = self.rope[0].diff(&self.rope[1]);
+        self.process_rest(1);
 
-        if diff.x > 1 {
-            self.rope[1].y = self.rope[0].y;
-            self.rope[1].x = self.rope[0].x - 1;
-        } else if diff.x < -1 {
-            self.rope[1].y = self.rope[0].y;
-            self.rope[1].x = self.rope[0].x + 1;
-        } else if diff.y > 1 {
-            self.rope[1].x = self.rope[0].x;
-            self.rope[1].y = self.rope[0].y - 1;
-        } else if diff.y < -1 {
-            self.rope[1].x = self.rope[0].x;
-            self.rope[1].y = self.rope[0].y + 1;
-        }
-
-        self.visited.insert(self.rope[1].clone());
+        let tail_index = self.rope.len() - 1;
+        self.visited.insert(self.rope[tail_index].clone());
 
         self.process((direction, amount - 1));
+    }
+
+    fn process_rest(&mut self, index: usize) {
+        if index == 0 || index >= self.rope.len() {
+            return;
+        }
+
+        let prev_index = index - 1;
+        let diff = self.rope[prev_index].diff(&self.rope[index]);
+
+        if diff.x > 1 {
+            self.rope[index].y = self.rope[prev_index].y;
+            self.rope[index].x = self.rope[prev_index].x - 1;
+        } else if diff.x < -1 {
+            self.rope[index].y = self.rope[prev_index].y;
+            self.rope[index].x = self.rope[prev_index].x + 1;
+        } else if diff.y > 1 {
+            self.rope[index].x = self.rope[prev_index].x;
+            self.rope[index].y = self.rope[prev_index].y - 1;
+        } else if diff.y < -1 {
+            self.rope[index].x = self.rope[prev_index].x;
+            self.rope[index].y = self.rope[prev_index].y + 1;
+        }
+
+        self.process_rest(index + 1);
     }
 }
 
