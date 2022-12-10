@@ -72,22 +72,18 @@ impl Rope {
 
         let diff = self.rope[0].diff(&self.rope[1]);
 
-        if diff.x.abs() > 1 {
+        if diff.x > 1 {
             self.rope[1].y = self.rope[0].y;
-
-            match direction {
-                Left => self.rope[1].x = self.rope[0].x + 1,
-                Right => self.rope[1].x = self.rope[0].x - 1,
-                _ => unreachable!(),
-            }
-        } else if diff.y.abs() > 1 {
+            self.rope[1].x = self.rope[0].x - 1;
+        } else if diff.x < -1 {
+            self.rope[1].y = self.rope[0].y;
+            self.rope[1].x = self.rope[0].x + 1;
+        } else if diff.y > 1 {
             self.rope[1].x = self.rope[0].x;
-
-            match direction {
-                Up => self.rope[1].y = self.rope[0].y - 1,
-                Down => self.rope[1].y = self.rope[0].y + 1,
-                _ => unreachable!(),
-            }
+            self.rope[1].y = self.rope[0].y - 1;
+        } else if diff.y < -1 {
+            self.rope[1].x = self.rope[0].x;
+            self.rope[1].y = self.rope[0].y + 1;
         }
 
         self.visited.insert(self.rope[1].clone());
