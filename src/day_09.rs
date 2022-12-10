@@ -3,18 +3,18 @@ use std::collections::{HashMap, HashSet};
 use crate::utils::read_lines;
 
 pub fn part_1() -> usize {
-    calculate(2).visited.len()
+    calculate(2, false).visited.len()
 }
 
 pub fn part_2() -> usize {
-    calculate(10).visited.len()
+    calculate(10, false).visited.len()
 }
 
-fn calculate(length: usize) -> Rope {
+fn calculate(length: usize, visualize_output: bool) -> Rope {
     let mut rope = Rope::new(length);
 
     for (direction, amount) in read_lines(9).iter().map(parse_line) {
-        rope.process(&direction, amount);
+        rope.process(&direction, amount, visualize_output);
     }
 
     rope
@@ -64,7 +64,7 @@ impl Rope {
         Self { rope, visited }
     }
 
-    fn process(&mut self, direction: &Direction, amount: u32) {
+    fn process(&mut self, direction: &Direction, amount: u32, visualize_output: bool) {
         use Direction::*;
 
         if amount == 0 {
@@ -78,17 +78,19 @@ impl Rope {
             Right => self.rope[0].x += 1,
         }
 
-        visualize(&self, &format!("====== {amount} {:?} ======", direction));
+        if visualize_output {
+            visualize(&self, &format!("====== {amount} {:?} ======", direction));
+        }
 
-        self.process_rest(1);
+        self.process_rest(1, visualize_output);
 
         let tail_index = self.rope.len() - 1;
         self.visited.insert(self.rope[tail_index].clone());
 
-        self.process(&direction, amount - 1);
+        self.process(&direction, amount - 1, visualize_output);
     }
 
-    fn process_rest(&mut self, index: usize) {
+    fn process_rest(&mut self, index: usize, visualize_output: bool) {
         if index == 0 || index >= self.rope.len() {
             return;
         }
@@ -113,8 +115,11 @@ impl Rope {
         }
 
         if changed {
-            self.process_rest(index + 1);
-            visualize(&self, &format!("  >> rest: {index}"));
+            self.process_rest(index + 1, visualize_output);
+
+            if visualize_output {
+                visualize(&self, &format!("  >> rest: {index}"));
+            }
         }
     }
 }
