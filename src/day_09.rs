@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::utils::read_lines;
 
 pub fn part_1() -> usize {
-    let mut rope = Rope::new();
+    let mut rope = Rope::new(2);
 
     for movement in read_lines(9).iter().map(parse_line) {
         rope.process(movement);
@@ -41,15 +41,19 @@ struct Rope {
 }
 
 impl Rope {
-    fn new() -> Self {
+    fn new(length: usize) -> Self {
         let init_coord = Coord { x: 0, y: 0 };
+
+        let mut rope = vec![];
+
+        for _ in 0..length {
+            rope.push(init_coord.clone());
+        }
+
         let mut visited = HashSet::new();
         visited.insert(init_coord.clone());
 
-        Self {
-            rope: vec![init_coord.clone(), init_coord.clone()],
-            visited,
-        }
+        Self { rope, visited }
     }
 
     fn process(&mut self, (direction, amount): (Direction, u32)) {
