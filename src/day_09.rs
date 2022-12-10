@@ -36,8 +36,7 @@ impl Coord {
 }
 
 struct Rope {
-    head: Coord,
-    tail: Coord,
+    rope: Vec<Coord>,
     visited: HashSet<Coord>,
 }
 
@@ -48,8 +47,7 @@ impl Rope {
         visited.insert(init_coord.clone());
 
         Self {
-            head: init_coord.clone(),
-            tail: init_coord.clone(),
+            rope: vec![init_coord.clone(), init_coord.clone()],
             visited,
         }
     }
@@ -62,33 +60,33 @@ impl Rope {
         }
 
         match direction {
-            Up => self.head.y += 1,
-            Down => self.head.y -= 1,
-            Left => self.head.x -= 1,
-            Right => self.head.x += 1,
+            Up => self.rope[0].y += 1,
+            Down => self.rope[0].y -= 1,
+            Left => self.rope[0].x -= 1,
+            Right => self.rope[0].x += 1,
         }
 
-        let diff = self.head.diff(&self.tail);
+        let diff = self.rope[0].diff(&self.rope[1]);
 
         if diff.x.abs() > 1 {
-            self.tail.y = self.head.y;
+            self.rope[1].y = self.rope[0].y;
 
             match direction {
-                Left => self.tail.x = self.head.x + 1,
-                Right => self.tail.x = self.head.x - 1,
+                Left => self.rope[1].x = self.rope[0].x + 1,
+                Right => self.rope[1].x = self.rope[0].x - 1,
                 _ => unreachable!(),
             }
         } else if diff.y.abs() > 1 {
-            self.tail.x = self.head.x;
+            self.rope[1].x = self.rope[0].x;
 
             match direction {
-                Up => self.tail.y = self.head.y - 1,
-                Down => self.tail.y = self.head.y + 1,
+                Up => self.rope[1].y = self.rope[0].y - 1,
+                Down => self.rope[1].y = self.rope[0].y + 1,
                 _ => unreachable!(),
             }
         }
 
-        self.visited.insert(self.tail.clone());
+        self.visited.insert(self.rope[1].clone());
 
         self.process((direction, amount - 1));
     }
