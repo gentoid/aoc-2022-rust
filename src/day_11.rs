@@ -1,7 +1,35 @@
+use std::collections::HashMap;
+
 use itertools::Itertools;
 use regex::Regex;
 
+use crate::utils::read_input_to_string;
+
 pub fn part_1() -> u32 {
+    let mut monkeys = read_input_to_string(11)
+        .split("\n\n")
+        .map(|input| parse_monkey(input))
+        .collect_vec();
+
+    let mut all_updates: HashMap<usize, Vec<u32>> = HashMap::new();
+
+    for (index, monkey) in monkeys.iter_mut().enumerate() {
+        println!("Monkey init {index}: {:?}", monkey.items);
+
+        if let Some(items) = all_updates.get_mut(&index) {
+            monkey.add(&items);
+            *items = vec![];
+        };
+
+        println!("Monkey w/up {index}: {:?}", monkey.items);
+
+        for (monkey, item) in monkey.turn() {
+            all_updates.entry(monkey).or_default().push(item);
+        }
+        println!("Monkey aftr {index}: {:?}\n", monkey.items);
+        println!("Updates: {:?}\n\n", all_updates);
+    }
+
     0
 }
 
@@ -73,4 +101,30 @@ struct Monkey {
     test: Box<dyn Fn(u32) -> bool>,
     if_true: usize,
     if_false: usize,
+}
+
+impl Monkey {
+    fn add(&mut self, items: &[u32]) {
+        self.items.extend(items);
+    }
+
+    fn turn(&mut self) -> Vec<(usize, u32)> {
+        let output = self
+            .items
+            .iter()
+            .map(|item| self.inspect(*item))
+            .collect_vec();
+        self.items = vec![];
+        output
+    }
+
+    fn inspect(&self, item: u32) -> (usize, u32) {
+        let worry_level = (self.operation)(item) / 3;
+
+        if (self.test)(worry_level) {
+            (self.if_true, worry_level)
+        } else {
+            (self.if_false, worry_level)
+        }
+    }
 }
