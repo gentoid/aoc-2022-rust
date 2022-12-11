@@ -5,36 +5,34 @@ use regex::Regex;
 
 use crate::utils::read_input_to_string;
 
-pub fn part_1() -> usize {
-    iterate(20, true)
-}
+// pub fn part_1() -> usize {
+//     iterate(20, true)
+// }
 
 pub fn part_2() -> usize {
-    iterate(1000, false)
+    iterate(10000)
 }
 
-fn iterate(rounds: u32, divide_by_3: bool) -> usize {
-    let check_rounds = vec![];
-    // 1, 20, 100, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000,
-    // ];
-    let mut monkeys = read_input_to_string(11)
+fn iterate(rounds: u32) -> usize {
+    let (mut monkeys, items): (Vec<_>, Vec<_>) = read_input_to_string(11)
         .split("\n\n")
-        .map(|input| parse_monkey(input, divide_by_3))
-        .collect_vec();
+        .map(|input| parse_monkey(input))
+        .unzip();
 
-    let modulos = Modulos::new(&monkeys.iter().map(|m| m.divisor).collect_vec());
+    let divisors = monkeys.iter().map(|m| m.divisor).collect_vec();
 
-    let mut all_updates: HashMap<usize, Vec<ItemType>> = HashMap::new();
-
-    for round in 0..rounds {
-        if !divide_by_3 && check_rounds.contains(&round) {
-            println!("\n=== AFTER ROUND {round} ===");
+    for (index, items) in items.iter().enumerate() {
+        for item in items {
+            let mut modulos = Modulos::new(&divisors);
+            modulos.update(&(Operation::Sum, *item));
+            monkeys[index].items.push(modulos);
         }
+    }
 
+    let mut all_updates: HashMap<usize, Vec<Modulos>> = HashMap::new();
+
+    for _ in 0..rounds {
         for (index, monkey) in monkeys.iter_mut().enumerate() {
-            if !divide_by_3 && check_rounds.contains(&round) {
-                println!("{index} inspected {}", monkey.inspected);
-            }
             monkey.with_updates(all_updates.get_mut(&index));
 
             for (monkey, item) in monkey.turn() {
@@ -43,11 +41,8 @@ fn iterate(rounds: u32, divide_by_3: bool) -> usize {
         }
     }
 
-    println!("====== THE END ======");
-
     for (index, monkey) in monkeys.iter_mut().enumerate() {
         monkey.with_updates(all_updates.get_mut(&index));
-        println!("{index} inspected {}", monkey.inspected);
     }
 
     let mut items_inspected = monkeys.iter().map(|monkey| monkey.inspected).collect_vec();
@@ -57,18 +52,19 @@ fn iterate(rounds: u32, divide_by_3: bool) -> usize {
     items_inspected[0] * items_inspected[1]
 }
 
-fn parse_monkey(input: &str, divide_by_3: bool) -> Monkey {
+fn parse_monkey(input: &str) -> (Monkey, Vec<ItemType>) {
     let (if_true, if_false) = parse_throws(input);
 
-    Monkey {
-        items: parse_items(input),
+    let monkey = Monkey {
+        items: vec![],
         operation: parse_operation(input),
         divisor: parse_test(input),
         if_true,
         if_false,
         inspected: 0,
-        divide_by_3,
-    }
+    };
+
+    (monkey, parse_items(input))
 }
 
 fn parse_items(input: &str) -> Vec<ItemType> {
@@ -80,13 +76,13 @@ fn parse_items(input: &str) -> Vec<ItemType> {
         .collect_vec()
 }
 
-fn parse_operation(input: &str) -> Box<dyn Fn(Modulos) -> ()> {
+fn parse_operation(input: &str) -> (Operation, ItemType) {
     let template = Regex::new(r"Operation: new = old ([+*]) ((:?\d+)|(:?\w+))").unwrap();
     let captures = template.captures(input).unwrap();
 
     if &captures[2] == "old" {
         return match &captures[1] {
-            "*" => Box::new(move |_i| ()),
+            "*" => (Operation::Power, 0),
             _ => unreachable!(),
         };
     }
@@ -94,8 +90,8 @@ fn parse_operation(input: &str) -> Box<dyn Fn(Modulos) -> ()> {
     let value = captures[2].parse::<ItemType>().unwrap();
 
     match &captures[1] {
-        "+" => Box::new(move |i| i.update(value, Operation::Sum)),
-        "*" => Box::new(move |i| i.update(value, Operation::Sum)),
+        "+" => (Operation::Sum, value),
+        "*" => (Operation::Multiply, value),
         _ => unreachable!(),
     }
 }
@@ -120,12 +116,14 @@ fn parse_throws(input: &str) -> (usize, usize) {
 
 type ItemType = usize;
 
+#[derive(Debug)]
 enum Operation {
     Sum,
     Multiply,
+    Power,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Modulos {
     data: HashMap<ItemType, ItemType>,
 }
@@ -140,11 +138,12 @@ impl Modulos {
         Self { data }
     }
 
-    fn update(&mut self, update_with: ItemType, operation: Operation) {
+    fn update(&mut self, operation: &(Operation, ItemType)) {
         for (key, value) in self.data.iter_mut() {
-            match operation {
-                Operation::Sum => *value = (value + update_with) % key,
-                Operation::Multiply => *value = (value * update_with) % key,
+            match &operation.0 {
+                Operation::Sum => *value = (*value + operation.1) % key,
+                Operation::Multiply => *value = (*value * operation.1) % key,
+                Operation::Power => *value = (*value * *value) % key,
             }
         }
     }
@@ -152,12 +151,11 @@ impl Modulos {
 
 struct Monkey {
     items: Vec<Modulos>,
-    operation: Box<dyn Fn(Modulos) -> ()>,
+    operation: (Operation, ItemType),
     divisor: ItemType,
     if_true: usize,
     if_false: usize,
     inspected: usize,
-    divide_by_3: bool,
 }
 
 impl Monkey {
@@ -168,11 +166,11 @@ impl Monkey {
         };
     }
 
-    fn turn(&mut self) -> Vec<(usize, ItemType)> {
+    fn turn(&mut self) -> Vec<(usize, Modulos)> {
         let output = self
             .items
             .iter()
-            .map(|item| self.inspect(*item))
+            .map(|item| self.inspect(item.clone()))
             .collect_vec();
         self.items = vec![];
         self.inspected += output.len();
@@ -180,18 +178,15 @@ impl Monkey {
         output
     }
 
-    fn inspect(&self, item: Modulos) -> (usize, ItemType) {
-        (self.operation)(item);
-        // let mut worry_level = item.
+    fn inspect(&self, mut item: Modulos) -> (usize, Modulos) {
+        item.update(&self.operation);
 
-        if self.divide_by_3 {
-            worry_level /= 3;
-        }
-
-        if item.data.get(&self.divisor).unwrap() == &0 {
-            (self.if_true, worry_level)
+        let throws_to = if *(item.data.get(&self.divisor).unwrap()) == 0 {
+            self.if_true
         } else {
-            (self.if_false, worry_level)
-        }
+            self.if_false
+        };
+
+        (throws_to, item)
     }
 }
