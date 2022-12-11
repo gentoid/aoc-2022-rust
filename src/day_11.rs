@@ -6,15 +6,33 @@ use regex::Regex;
 use crate::utils::read_input_to_string;
 
 pub fn part_1() -> usize {
+    iterate(20, true)
+}
+
+pub fn part_2() -> usize {
+    iterate(1000, false)
+}
+
+fn iterate(rounds: u32, divide_by_3: bool) -> usize {
+    let check_rounds = vec![
+        1, 20, 100, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000,
+    ];
     let mut monkeys = read_input_to_string(11)
         .split("\n\n")
-        .map(|input| parse_monkey(input))
+        .map(|input| parse_monkey(input, divide_by_3))
         .collect_vec();
 
-    let mut all_updates: HashMap<usize, Vec<u32>> = HashMap::new();
+    let mut all_updates: HashMap<usize, Vec<Item>> = HashMap::new();
 
-    for _ in 0..20 {
+    for round in 0..rounds {
+        if !divide_by_3 && check_rounds.contains(&round) {
+            println!("\n=== AFTER ROUND {round} ===");
+        }
+
         for (index, monkey) in monkeys.iter_mut().enumerate() {
+            if !divide_by_3 && check_rounds.contains(&round) {
+                println!("{index} inspected {}", monkey.inspected);
+            }
             monkey.with_updates(all_updates.get_mut(&index));
 
             for (monkey, item) in monkey.turn() {
@@ -23,8 +41,11 @@ pub fn part_1() -> usize {
         }
     }
 
+    println!("====== THE END ======");
+
     for (index, monkey) in monkeys.iter_mut().enumerate() {
         monkey.with_updates(all_updates.get_mut(&index));
+        println!("{index} inspected {}", monkey.inspected);
     }
 
     let mut items_inspected = monkeys.iter().map(|monkey| monkey.inspected).collect_vec();
@@ -34,7 +55,7 @@ pub fn part_1() -> usize {
     items_inspected[0] * items_inspected[1]
 }
 
-fn parse_monkey(input: &str) -> Monkey {
+fn parse_monkey(input: &str, divide_by_3: bool) -> Monkey {
     let (if_true, if_false) = parse_throws(input);
 
     Monkey {
@@ -44,19 +65,20 @@ fn parse_monkey(input: &str) -> Monkey {
         if_true,
         if_false,
         inspected: 0,
+        divide_by_3,
     }
 }
 
-fn parse_items(input: &str) -> Vec<u32> {
+fn parse_items(input: &str) -> Vec<Item> {
     let template = Regex::new(r"Starting items: ((?:\d+, )*\d+)").unwrap();
     let captures = template.captures(input).unwrap();
     captures[1]
         .split(", ")
-        .map(|num| num.parse::<u32>().unwrap())
+        .map(|num| num.parse::<Item>().unwrap())
         .collect_vec()
 }
 
-fn parse_operation(input: &str) -> Box<dyn Fn(u32) -> u32> {
+fn parse_operation(input: &str) -> Box<dyn Fn(Item) -> Item> {
     let template = Regex::new(r"Operation: new = old ([+*]) ((:?\d+)|(:?\w+))").unwrap();
     let captures = template.captures(input).unwrap();
 
@@ -68,7 +90,7 @@ fn parse_operation(input: &str) -> Box<dyn Fn(u32) -> u32> {
         };
     }
 
-    let value = captures[2].parse::<u32>().unwrap();
+    let value = captures[2].parse::<Item>().unwrap();
 
     match &captures[1] {
         "+" => Box::new(move |i| i + value),
@@ -77,11 +99,11 @@ fn parse_operation(input: &str) -> Box<dyn Fn(u32) -> u32> {
     }
 }
 
-fn parse_test(input: &str) -> Box<dyn Fn(u32) -> bool> {
+fn parse_test(input: &str) -> Box<dyn Fn(Item) -> bool> {
     let template = Regex::new(r"Test: divisible by (\d+)").unwrap();
     let captures = template.captures(input).unwrap();
 
-    let value = captures[1].parse::<u32>().unwrap();
+    let value = captures[1].parse::<Item>().unwrap();
 
     Box::new(move |i| i % value == 0)
 }
@@ -97,25 +119,28 @@ fn parse_throws(input: &str) -> (usize, usize) {
     (if_true, if_false)
 }
 
+type Item = u128;
+
 struct Monkey {
-    items: Vec<u32>,
-    operation: Box<dyn Fn(u32) -> u32>,
-    test: Box<dyn Fn(u32) -> bool>,
+    items: Vec<Item>,
+    operation: Box<dyn Fn(Item) -> Item>,
+    test: Box<dyn Fn(Item) -> bool>,
     if_true: usize,
     if_false: usize,
     inspected: usize,
+    divide_by_3: bool,
 }
 
 impl Monkey {
-    fn with_updates(&mut self, items: Option<&mut Vec<u32>>) {
+    fn with_updates(&mut self, items: Option<&mut Vec<Item>>) {
         if let Some(items) = items {
-            let tmp: &[u32] = &items;
+            let tmp: &[Item] = &items;
             self.items.extend(tmp);
             *items = vec![];
         };
     }
 
-    fn turn(&mut self) -> Vec<(usize, u32)> {
+    fn turn(&mut self) -> Vec<(usize, Item)> {
         let output = self
             .items
             .iter()
@@ -127,8 +152,12 @@ impl Monkey {
         output
     }
 
-    fn inspect(&self, item: u32) -> (usize, u32) {
-        let worry_level = (self.operation)(item) / 3;
+    fn inspect(&self, item: Item) -> (usize, Item) {
+        let mut worry_level = (self.operation)(item);
+
+        if self.divide_by_3 {
+            worry_level /= 3;
+        }
 
         if (self.test)(worry_level) {
             (self.if_true, worry_level)
