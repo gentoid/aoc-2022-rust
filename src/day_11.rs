@@ -13,9 +13,9 @@ pub fn part_1() -> usize {
 
     let mut all_updates: HashMap<usize, Vec<u32>> = HashMap::new();
 
-    for round in 0..20 {
+    for _ in 0..20 {
         for (index, monkey) in monkeys.iter_mut().enumerate() {
-            with_updates(all_updates.get_mut(&index), monkey);
+            monkey.with_updates(all_updates.get_mut(&index));
 
             for (monkey, item) in monkey.turn() {
                 all_updates.entry(monkey).or_default().push(item);
@@ -24,21 +24,14 @@ pub fn part_1() -> usize {
     }
 
     for (index, monkey) in monkeys.iter_mut().enumerate() {
-        with_updates(all_updates.get_mut(&index), monkey);
+        monkey.with_updates(all_updates.get_mut(&index));
     }
 
     let mut items_inspected = monkeys.iter().map(|monkey| monkey.inspected).collect_vec();
     items_inspected.sort();
     items_inspected.reverse();
-    
-    items_inspected[0] * items_inspected[1]
-}
 
-fn with_updates(items: Option<&mut Vec<u32>>, monkey: &mut Monkey) {
-    if let Some(items) = items {
-        monkey.add(&items);
-        *items = vec![];
-    };
+    items_inspected[0] * items_inspected[1]
 }
 
 fn parse_monkey(input: &str) -> Monkey {
@@ -114,8 +107,12 @@ struct Monkey {
 }
 
 impl Monkey {
-    fn add(&mut self, items: &[u32]) {
-        self.items.extend(items);
+    fn with_updates(&mut self, items: Option<&mut Vec<u32>>) {
+        if let Some(items) = items {
+            let tmp: &[u32] = &items;
+            self.items.extend(tmp);
+            *items = vec![];
+        };
     }
 
     fn turn(&mut self) -> Vec<(usize, u32)> {
