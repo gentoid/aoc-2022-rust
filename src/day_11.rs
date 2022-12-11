@@ -27,8 +27,16 @@ fn parse_items(input: &str) -> Vec<u32> {
 }
 
 fn parse_operation(input: &str) -> Box<dyn Fn(u32) -> u32> {
-    let template = Regex::new(r"Operation: new = old ([+*]) (\d+)").unwrap();
+    let template = Regex::new(r"Operation: new = old ([+*]) ((:?\d+)|(:?\w+))").unwrap();
     let captures = template.captures(input).unwrap();
+
+    if &captures[2] == "old" {
+        return match &captures[1] {
+            "+" => Box::new(move |i| i + i),
+            "*" => Box::new(move |i| i * i),
+            _ => unreachable!(),
+        };
+    }
 
     let value = captures[2].parse::<u32>().unwrap();
 
