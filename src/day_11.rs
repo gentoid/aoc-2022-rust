@@ -14,15 +14,17 @@ pub fn part_2() -> usize {
 }
 
 fn iterate(rounds: u32, divide_by_3: bool) -> usize {
-    let check_rounds = vec![
-        1, 20, 100, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000,
-    ];
+    let check_rounds = vec![];
+    // 1, 20, 100, 500, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000,
+    // ];
     let mut monkeys = read_input_to_string(11)
         .split("\n\n")
         .map(|input| parse_monkey(input, divide_by_3))
         .collect_vec();
 
-    let mut all_updates: HashMap<usize, Vec<Item>> = HashMap::new();
+    let modulos = Modulos::new(&monkeys.iter().map(|m| m.divisor).collect_vec());
+
+    let mut all_updates: HashMap<usize, Vec<ItemType>> = HashMap::new();
 
     for round in 0..rounds {
         if !divide_by_3 && check_rounds.contains(&round) {
@@ -61,7 +63,7 @@ fn parse_monkey(input: &str, divide_by_3: bool) -> Monkey {
     Monkey {
         items: parse_items(input),
         operation: parse_operation(input),
-        test: parse_test(input),
+        divisor: parse_test(input),
         if_true,
         if_false,
         inspected: 0,
@@ -69,43 +71,40 @@ fn parse_monkey(input: &str, divide_by_3: bool) -> Monkey {
     }
 }
 
-fn parse_items(input: &str) -> Vec<Item> {
+fn parse_items(input: &str) -> Vec<ItemType> {
     let template = Regex::new(r"Starting items: ((?:\d+, )*\d+)").unwrap();
     let captures = template.captures(input).unwrap();
     captures[1]
         .split(", ")
-        .map(|num| num.parse::<Item>().unwrap())
+        .map(|num| num.parse::<ItemType>().unwrap())
         .collect_vec()
 }
 
-fn parse_operation(input: &str) -> Box<dyn Fn(Item) -> Item> {
+fn parse_operation(input: &str) -> Box<dyn Fn(Modulos) -> ()> {
     let template = Regex::new(r"Operation: new = old ([+*]) ((:?\d+)|(:?\w+))").unwrap();
     let captures = template.captures(input).unwrap();
 
     if &captures[2] == "old" {
         return match &captures[1] {
-            "+" => Box::new(move |i| i + i),
-            "*" => Box::new(move |i| i * i),
+            "*" => Box::new(move |_i| ()),
             _ => unreachable!(),
         };
     }
 
-    let value = captures[2].parse::<Item>().unwrap();
+    let value = captures[2].parse::<ItemType>().unwrap();
 
     match &captures[1] {
-        "+" => Box::new(move |i| i + value),
-        "*" => Box::new(move |i| i * value),
+        "+" => Box::new(move |i| i.update(value, Operation::Sum)),
+        "*" => Box::new(move |i| i.update(value, Operation::Sum)),
         _ => unreachable!(),
     }
 }
 
-fn parse_test(input: &str) -> Box<dyn Fn(Item) -> bool> {
+fn parse_test(input: &str) -> ItemType {
     let template = Regex::new(r"Test: divisible by (\d+)").unwrap();
     let captures = template.captures(input).unwrap();
 
-    let value = captures[1].parse::<Item>().unwrap();
-
-    Box::new(move |i| i % value == 0)
+    captures[1].parse::<ItemType>().unwrap()
 }
 
 fn parse_throws(input: &str) -> (usize, usize) {
@@ -119,12 +118,42 @@ fn parse_throws(input: &str) -> (usize, usize) {
     (if_true, if_false)
 }
 
-type Item = u128;
+type ItemType = usize;
+
+enum Operation {
+    Sum,
+    Multiply,
+}
+
+#[derive(Clone)]
+struct Modulos {
+    data: HashMap<ItemType, ItemType>,
+}
+
+impl Modulos {
+    fn new(divisors: &[ItemType]) -> Self {
+        let mut data = HashMap::new();
+        for div in divisors {
+            data.insert(*div, 0);
+        }
+
+        Self { data }
+    }
+
+    fn update(&mut self, update_with: ItemType, operation: Operation) {
+        for (key, value) in self.data.iter_mut() {
+            match operation {
+                Operation::Sum => *value = (value + update_with) % key,
+                Operation::Multiply => *value = (value * update_with) % key,
+            }
+        }
+    }
+}
 
 struct Monkey {
-    items: Vec<Item>,
-    operation: Box<dyn Fn(Item) -> Item>,
-    test: Box<dyn Fn(Item) -> bool>,
+    items: Vec<Modulos>,
+    operation: Box<dyn Fn(Modulos) -> ()>,
+    divisor: ItemType,
     if_true: usize,
     if_false: usize,
     inspected: usize,
@@ -132,15 +161,14 @@ struct Monkey {
 }
 
 impl Monkey {
-    fn with_updates(&mut self, items: Option<&mut Vec<Item>>) {
+    fn with_updates(&mut self, items: Option<&mut Vec<Modulos>>) {
         if let Some(items) = items {
-            let tmp: &[Item] = &items;
-            self.items.extend(tmp);
+            self.items.extend(items.clone());
             *items = vec![];
         };
     }
 
-    fn turn(&mut self) -> Vec<(usize, Item)> {
+    fn turn(&mut self) -> Vec<(usize, ItemType)> {
         let output = self
             .items
             .iter()
@@ -152,14 +180,15 @@ impl Monkey {
         output
     }
 
-    fn inspect(&self, item: Item) -> (usize, Item) {
-        let mut worry_level = (self.operation)(item);
+    fn inspect(&self, item: Modulos) -> (usize, ItemType) {
+        (self.operation)(item);
+        // let mut worry_level = item.
 
         if self.divide_by_3 {
             worry_level /= 3;
         }
 
-        if (self.test)(worry_level) {
+        if item.data.get(&self.divisor).unwrap() == &0 {
             (self.if_true, worry_level)
         } else {
             (self.if_false, worry_level)
