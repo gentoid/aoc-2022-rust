@@ -3,30 +3,36 @@ use std::collections::HashMap;
 use itertools::Itertools;
 use regex::Regex;
 
-use crate::utils::read_input_to_string;
+use crate::utils::read_input_split_by_lines_number;
 
-// pub fn part_1() -> usize {
-//     iterate(20, true)
-// }
-
-pub fn part_2() -> usize {
-    iterate(10000)
+pub fn part_1() -> usize {
+    iterate(20, true)
 }
 
-fn iterate(rounds: u32) -> usize {
-    let (mut monkeys, items): (Vec<_>, Vec<_>) = read_input_to_string(11)
-        .split("\n\n")
-        .map(|input| parse_monkey(input))
-        .unzip();
+pub fn part_2() -> usize {
+    iterate(10000, false)
+}
+
+fn iterate(rounds: u32, reduce_worrying: bool) -> usize {
+    let mut monkeys = read_input_split_by_lines_number(11, 7)
+        .iter()
+        .map(|input| parse_monkey(input, reduce_worrying))
+        .collect_vec();
 
     let divisors = monkeys.iter().map(|m| m.divisor).collect_vec();
 
-    for (index, items) in items.iter().enumerate() {
-        for item in items {
+    let mut modulos_vec = vec![];
+
+    for (index, monkey) in monkeys.iter().enumerate() {
+        for item in &monkey.items {
             let mut modulos = Modulos::new(&divisors);
             modulos.update(&(Operation::Sum, *item));
-            monkeys[index].items.push(modulos);
+            modulos_vec.push((index, modulos));
         }
+    }
+
+    for (index, modulos) in modulos_vec {
+        monkeys[index].modulos.push(modulos);
     }
 
     let mut all_updates: HashMap<usize, Vec<Modulos>> = HashMap::new();
@@ -52,19 +58,19 @@ fn iterate(rounds: u32) -> usize {
     items_inspected[0] * items_inspected[1]
 }
 
-fn parse_monkey(input: &str) -> (Monkey, Vec<ItemType>) {
+fn parse_monkey(input: &str, reduce_worrying: bool) -> Monkey {
     let (if_true, if_false) = parse_throws(input);
 
-    let monkey = Monkey {
-        items: vec![],
+    Monkey {
+        modulos: vec![],
+        items: parse_items(input),
         operation: parse_operation(input),
         divisor: parse_test(input),
         if_true,
         if_false,
         inspected: 0,
-    };
-
-    (monkey, parse_items(input))
+        reduce_worrying,
+    }
 }
 
 fn parse_items(input: &str) -> Vec<ItemType> {
@@ -149,30 +155,33 @@ impl Modulos {
     }
 }
 
+#[derive(Debug)]
 struct Monkey {
-    items: Vec<Modulos>,
+    modulos: Vec<Modulos>,
+    items: Vec<ItemType>,
     operation: (Operation, ItemType),
     divisor: ItemType,
     if_true: usize,
     if_false: usize,
     inspected: usize,
+    reduce_worrying: bool,
 }
 
 impl Monkey {
     fn with_updates(&mut self, items: Option<&mut Vec<Modulos>>) {
         if let Some(items) = items {
-            self.items.extend(items.clone());
+            self.modulos.extend(items.clone());
             *items = vec![];
         };
     }
 
     fn turn(&mut self) -> Vec<(usize, Modulos)> {
         let output = self
-            .items
+            .modulos
             .iter()
             .map(|item| self.inspect(item.clone()))
             .collect_vec();
-        self.items = vec![];
+        self.modulos = vec![];
         self.inspected += output.len();
 
         output
