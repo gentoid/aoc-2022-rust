@@ -5,7 +5,7 @@ use regex::Regex;
 
 use crate::utils::read_input_to_string;
 
-pub fn part_1() -> u32 {
+pub fn part_1() -> usize {
     let mut monkeys = read_input_to_string(11)
         .split("\n\n")
         .map(|input| parse_monkey(input))
@@ -13,24 +13,32 @@ pub fn part_1() -> u32 {
 
     let mut all_updates: HashMap<usize, Vec<u32>> = HashMap::new();
 
-    for (index, monkey) in monkeys.iter_mut().enumerate() {
-        println!("Monkey init {index}: {:?}", monkey.items);
+    for round in 0..20 {
+        for (index, monkey) in monkeys.iter_mut().enumerate() {
+            with_updates(all_updates.get_mut(&index), monkey);
 
-        if let Some(items) = all_updates.get_mut(&index) {
-            monkey.add(&items);
-            *items = vec![];
-        };
-
-        println!("Monkey w/up {index}: {:?}", monkey.items);
-
-        for (monkey, item) in monkey.turn() {
-            all_updates.entry(monkey).or_default().push(item);
+            for (monkey, item) in monkey.turn() {
+                all_updates.entry(monkey).or_default().push(item);
+            }
         }
-        println!("Monkey aftr {index}: {:?}\n", monkey.items);
-        println!("Updates: {:?}\n\n", all_updates);
     }
 
-    0
+    for (index, monkey) in monkeys.iter_mut().enumerate() {
+        with_updates(all_updates.get_mut(&index), monkey);
+    }
+
+    let mut items_inspected = monkeys.iter().map(|monkey| monkey.inspected).collect_vec();
+    items_inspected.sort();
+    items_inspected.reverse();
+    
+    items_inspected[0] * items_inspected[1]
+}
+
+fn with_updates(items: Option<&mut Vec<u32>>, monkey: &mut Monkey) {
+    if let Some(items) = items {
+        monkey.add(&items);
+        *items = vec![];
+    };
 }
 
 fn parse_monkey(input: &str) -> Monkey {
@@ -42,6 +50,7 @@ fn parse_monkey(input: &str) -> Monkey {
         test: parse_test(input),
         if_true,
         if_false,
+        inspected: 0,
     }
 }
 
@@ -101,6 +110,7 @@ struct Monkey {
     test: Box<dyn Fn(u32) -> bool>,
     if_true: usize,
     if_false: usize,
+    inspected: usize,
 }
 
 impl Monkey {
@@ -115,6 +125,8 @@ impl Monkey {
             .map(|item| self.inspect(*item))
             .collect_vec();
         self.items = vec![];
+        self.inspected += output.len();
+
         output
     }
 
