@@ -4,37 +4,62 @@ use itertools::Itertools;
 
 use crate::utils::read_lines;
 
-type Map = Vec<Vec<u32>>;
+fn find_path() {
+    let map = Map::new();
+}
 
-fn prepare_data() -> (Map, Coord, Coord) {
-    let mut map = vec![];
-    let mut start = Coord { x: 0, y: 0 };
-    let mut end = Coord { x: 0, y: 0 };
-    read_lines(12)
-        .iter()
-        .map(|line| line.chars().collect_vec())
-        .enumerate()
-        .for_each(|(y, chars)| {
-            let mut line = vec![];
-            for (x, char) in chars.iter().enumerate() {
-                match char {
-                    'a'..='z' => line.push(*char as u32),
-                    'S' => {
-                        line.push('a' as u32);
-                        start = Coord { x, y };
+struct Map {
+    map: Vec<Vec<u32>>,
+    max: Coord,
+    start: Coord,
+    end: Coord,
+}
+
+impl Map {
+    fn new() -> Self {
+        let mut map = vec![];
+        let mut start = Coord { x: 0, y: 0 };
+        let mut end = Coord { x: 0, y: 0 };
+        let mut max = Coord { x: 0, y: 0 };
+        read_lines(12)
+            .iter()
+            .map(|line| line.chars().collect_vec())
+            .enumerate()
+            .for_each(|(y, chars)| {
+                max.y = max.y.max(y);
+
+                let mut line = vec![];
+                for (x, char) in chars.iter().enumerate() {
+                    max.x = max.x.max(x);
+
+                    match char {
+                        'a'..='z' => line.push(*char as u32),
+                        'S' => {
+                            line.push('a' as u32);
+                            start = Coord { x, y };
+                        }
+                        'E' => {
+                            line.push('z' as u32);
+                            end = Coord { x, y };
+                        }
+                        _ => unreachable!(),
                     }
-                    'E' => {
-                        line.push('z' as u32);
-                        end = Coord { x, y };
-                    }
-                    _ => unreachable!(),
                 }
-            }
 
-            map.push(line);
-        });
+                map.push(line);
+            });
 
-    (map, start, end)
+        Map {
+            map,
+            start,
+            end,
+            max,
+        }
+    }
+
+    fn at(&self, coord: &Coord) -> u32 {
+        self.map[coord.y][coord.x]
+    }
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -88,18 +113,30 @@ struct Path {
 }
 
 impl Path {
+    fn new(start: &Coord, map: &Map) -> Self {
+        let mut visited = HashSet::new();
+        visited.insert(start.clone());
+
+        Self {
+            visited,
+            path: vec![start.clone()],
+            current: (start.clone(), map.at(start)),
+            max: map.max.clone(),
+        }
+    }
+
     fn find_more_paths(self, map: &Map) -> Vec<Self> {
         self.current
             .0
             .neighbors(&self.max)
             .into_iter()
             .filter(|coord| !self.visited.iter().contains(&coord))
-            .filter(|coord| map[coord.y][coord.x] <= self.current.1 + 1)
+            .filter(|coord| map.at(coord) <= self.current.1 + 1)
             .map(|coord| {
                 let mut path = self.clone();
                 path.visited.insert(coord.clone());
                 path.path.push(coord.clone());
-                path.current = (coord.clone(), map[coord.y][coord.x]);
+                path.current = (coord.clone(), map.at(&coord));
 
                 path
             })
