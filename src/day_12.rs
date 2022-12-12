@@ -2,8 +2,39 @@ use std::collections::HashSet;
 
 use itertools::Itertools;
 
-fn parse_line(line: &String) -> Vec<u32> {
-    line.chars().map(|c| c.to_digit(10).unwrap()).collect_vec()
+use crate::utils::read_lines;
+
+type Map = Vec<Vec<u32>>;
+
+fn prepare_data() -> (Map, Coord, Coord) {
+    let mut map = vec![];
+    let mut start = Coord { x: 0, y: 0 };
+    let mut end = Coord { x: 0, y: 0 };
+    read_lines(12)
+        .iter()
+        .map(|line| line.chars().collect_vec())
+        .enumerate()
+        .for_each(|(y, chars)| {
+            let mut line = vec![];
+            for (x, char) in chars.iter().enumerate() {
+                match char {
+                    'a'..='z' => line.push(*char as u32),
+                    'S' => {
+                        line.push('a' as u32);
+                        start = Coord { x, y };
+                    }
+                    'E' => {
+                        line.push('z' as u32);
+                        end = Coord { x, y };
+                    }
+                    _ => unreachable!(),
+                }
+            }
+
+            map.push(line);
+        });
+
+    (map, start, end)
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -57,8 +88,9 @@ struct Path {
 }
 
 impl Path {
-    fn find_more_paths(self, map: &Vec<Vec<u32>>) -> Vec<Self> {
-        self.current.0
+    fn find_more_paths(self, map: &Map) -> Vec<Self> {
+        self.current
+            .0
             .neighbors(&self.max)
             .into_iter()
             .filter(|coord| !self.visited.iter().contains(&coord))
