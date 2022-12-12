@@ -52,21 +52,22 @@ impl Coord {
 struct Path {
     visited: HashSet<Coord>,
     path: Vec<Coord>,
+    current: (Coord, u32),
     max: Coord,
 }
 
 impl Path {
-    fn find_more_paths(self) -> Vec<Self> {
-        self.path
-            .last()
-            .unwrap()
+    fn find_more_paths(self, map: &Vec<Vec<u32>>) -> Vec<Self> {
+        self.current.0
             .neighbors(&self.max)
             .into_iter()
-            .filter(|neighbor| !self.visited.iter().contains(&neighbor))
-            .map(|neighbor| {
+            .filter(|coord| !self.visited.iter().contains(&coord))
+            .filter(|coord| map[coord.y][coord.x] <= self.current.1 + 1)
+            .map(|coord| {
                 let mut path = self.clone();
-                path.visited.insert(neighbor.clone());
-                path.path.push(neighbor);
+                path.visited.insert(coord.clone());
+                path.path.push(coord.clone());
+                path.current = (coord.clone(), map[coord.y][coord.x]);
 
                 path
             })
