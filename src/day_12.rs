@@ -109,26 +109,24 @@ struct Path {
     visited: HashSet<Coord>,
     path: Vec<Coord>,
     current: (Coord, u32),
-    max: Coord,
 }
 
 impl Path {
-    fn new(start: &Coord, map: &Map) -> Self {
+    fn new(map: &Map) -> Self {
         let mut visited = HashSet::new();
-        visited.insert(start.clone());
+        visited.insert(map.start.clone());
 
         Self {
             visited,
-            path: vec![start.clone()],
-            current: (start.clone(), map.at(start)),
-            max: map.max.clone(),
+            path: vec![map.start.clone()],
+            current: (map.start.clone(), map.at(&map.start)),
         }
     }
 
     fn find_more_paths(self, map: &Map) -> Vec<Self> {
         self.current
             .0
-            .neighbors(&self.max)
+            .neighbors(&map.max)
             .into_iter()
             .filter(|coord| !self.visited.iter().contains(&coord))
             .filter(|coord| map.at(coord) <= self.current.1 + 1)
