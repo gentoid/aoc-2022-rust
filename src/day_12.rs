@@ -5,13 +5,27 @@ use itertools::Itertools;
 use crate::utils::read_lines;
 
 pub fn part_1() -> usize {
-    let map = Map::new();
+    let map = Map::new(true);
+    iterate(&map).path.len() - 1
+}
 
+pub fn part_2() -> usize {
+    let map = Map::new(false);
+    iterate(&map).path.len() - 1
+}
+
+fn iterate(map: &Map) -> Path {
     let mut paths = vec![Path::new(&map)];
     let mut next_paths = vec![];
     let mut visited = HashSet::new();
 
-    for _ in 0..10000 {
+    let test: fn(&Path, &Map) -> bool = if map.forward {
+        |path, map| path.current.0 == map.end
+    } else {
+        |path, _| path.current.1 == 'a' as u32
+    };
+
+    loop {
         for path in paths {
             let tmp = path
                 .find_more_paths(&map)
@@ -26,15 +40,13 @@ pub fn part_1() -> usize {
             next_paths.extend(tmp);
         }
 
-        if let Some(found) = next_paths.iter().find(|path| path.current.0 == map.end) {
-            return found.path.len() - 1;
+        if let Some(found) = next_paths.iter().find(|path| test(*path, &map)) {
+            return found.clone();
         }
 
         paths = next_paths;
         next_paths = vec![];
     }
-
-    0
 }
 
 struct Map {
@@ -42,10 +54,11 @@ struct Map {
     max: Coord,
     start: Coord,
     end: Coord,
+    forward: bool,
 }
 
 impl Map {
-    fn new() -> Self {
+    fn new(forward: bool) -> Self {
         let mut map = vec![];
         let mut start = Coord { x: 0, y: 0 };
         let mut end = Coord { x: 0, y: 0 };
@@ -83,6 +96,7 @@ impl Map {
             start,
             end,
             max,
+            forward,
         }
     }
 
@@ -142,13 +156,18 @@ struct Path {
 
 impl Path {
     fn new(map: &Map) -> Self {
+        let start = if map.forward {
+            map.start.clone()
+        } else {
+            map.end.clone()
+        };
         let mut visited = HashSet::new();
-        visited.insert(map.start.clone());
+        visited.insert(start.clone());
 
         Self {
             visited,
-            path: vec![map.start.clone()],
-            current: (map.start.clone(), map.at(&map.start)),
+            path: vec![start.clone()],
+            current: (start.clone(), map.at(&start)),
         }
     }
 
@@ -158,7 +177,14 @@ impl Path {
             .neighbors(&map.max)
             .into_iter()
             .filter(|coord| !self.visited.iter().contains(&coord))
-            .filter(|coord| map.at(coord) <= self.current.1 + 1)
+            .filter(|coord| {
+                let height = map.at(coord);
+                if map.forward {
+                    height <= self.current.1 + 1
+                } else {
+                    height >= self.current.1 - 1
+                }
+            })
             .map(|coord| {
                 let mut path = self.clone();
                 path.visited.insert(coord.clone());
