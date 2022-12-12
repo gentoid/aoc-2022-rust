@@ -4,8 +4,37 @@ use itertools::Itertools;
 
 use crate::utils::read_lines;
 
-fn find_path() {
+pub fn part_1() -> usize {
     let map = Map::new();
+
+    let mut paths = vec![Path::new(&map)];
+    let mut next_paths = vec![];
+    let mut visited = HashSet::new();
+
+    for _ in 0..10000 {
+        for path in paths {
+            let tmp = path
+                .find_more_paths(&map)
+                .into_iter()
+                .filter(|path| !visited.iter().contains(&path.current.0))
+                .collect_vec();
+
+            tmp.iter().for_each(|path| {
+                visited.insert(path.current.0.clone());
+            });
+
+            next_paths.extend(tmp);
+        }
+
+        if let Some(found) = next_paths.iter().find(|path| path.current.0 == map.end) {
+            return found.path.len() - 1;
+        }
+
+        paths = next_paths;
+        next_paths = vec![];
+    }
+
+    0
 }
 
 struct Map {
@@ -62,7 +91,7 @@ impl Map {
     }
 }
 
-#[derive(Clone, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct Coord {
     x: usize,
     y: usize,
@@ -104,7 +133,7 @@ impl Coord {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Path {
     visited: HashSet<Coord>,
     path: Vec<Coord>,
