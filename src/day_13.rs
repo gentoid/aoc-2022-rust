@@ -1,31 +1,37 @@
 use crate::utils::read_input_split_by_lines_number;
 use itertools::Itertools;
 
-pub fn part_1() -> u32 {
-    let tmp = read_input_split_by_lines_number(13, 3)
+pub fn part_1() -> usize {
+    read_input_split_by_lines_number(13, 3)
         .iter()
         .map(|input| parse_input(input))
-        .collect_vec();
-    0
+        .map(|(left, right)| compare(&left, &right))
+        .enumerate()
+        .filter(|(_, comparison)| comparison == &Comparison::Ok)
+        .map(|(index, _)| index + 1)
+        .sum()
 }
 
 #[derive(Clone, Debug)]
 enum Value {
     Number(usize),
-    List(Vec<Box<Value>>),
+    List(Box<Vec<Value>>),
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 enum Comparison {
     Ok,
     NotOk,
     Next,
 }
 
-fn parse_input(input: &str) {
-    let tmp = input.lines().map(|line| parse(line, 0)).collect_vec();
+fn parse_input(input: &str) -> (Value, Value) {
+    let lines = input.lines().collect_vec();
 
-    println!("{:?}", tmp);
+    let left = parse(lines[0], 0);
+    let right = parse(lines[1], 0);
+
+    (left.0, right.0)
 }
 
 fn parse(input: &str, nested: usize) -> (Value, usize) {
@@ -62,7 +68,7 @@ fn get_list(input: &str, nested: usize) -> (Value, usize) {
     // println!("{}Get list: {input}", " ".repeat(nested));
     let mut inspected = 1;
 
-    let mut output = vec![];
+    let mut output = Box::new(vec![]);
 
     if input.starts_with("[]") {
         inspected += 1;
@@ -77,7 +83,7 @@ fn get_list(input: &str, nested: usize) -> (Value, usize) {
     loop {
         // println!("{}Loop start at {inspected}", " ".repeat(nested));
         let (value, inspected_inner) = parse(&input[inspected..], nested + 2);
-        output.push(Box::new(value));
+        output.push(value);
         inspected += inspected_inner;
 
         if &input[inspected..inspected + 1] == "]" {
@@ -123,7 +129,7 @@ fn compare(left: &Value, right: &Value) -> Comparison {
 
             compare(&Number(left.len()), &Number(right.len()))
         }
-        (List(_), Number(_)) => compare(left, &List(vec![Box::new(right.clone())])),
-        (Number(_), List(_)) => compare(&List(vec![Box::new(left.clone())]), right),
+        (List(_), Number(_)) => compare(left, &List(Box::new(vec![right.clone()]))),
+        (Number(_), List(_)) => compare(&List(Box::new(vec![left.clone()])), right),
     }
 }
