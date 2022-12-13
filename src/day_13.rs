@@ -166,7 +166,6 @@ fn sort(mut list: Vec<Value>) -> Vec<Value> {
     if len == 2 {
         return match compare(&list[0], &list[1]) {
             Comparison::NotOk => {
-                println!("Going to reverse: {:?}", list);
                 list.reverse();
                 list
             }
@@ -183,9 +182,6 @@ fn sort(mut list: Vec<Value>) -> Vec<Value> {
     for value in list {
         match compare(&value, &pivot) {
             Comparison::NotOk => {
-                println!(" == Comparison ==");
-                println!("  Pivot: {}", pivot);
-                println!("  This is more: {}", value);
                 more.push(value);
             }
             _ => less.push(value),
