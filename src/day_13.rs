@@ -1,4 +1,6 @@
-use crate::utils::read_input_split_by_lines_number;
+use std::fmt;
+
+use crate::utils::{read_input_split_by_lines_number, read_lines};
 use itertools::Itertools;
 
 pub fn part_1() -> usize {
@@ -12,10 +14,45 @@ pub fn part_1() -> usize {
         .sum()
 }
 
+pub fn part_2() -> usize {
+    let mut input = read_lines(13);
+    input.push("[[6]]".to_owned());
+    input.push("[[2]]".to_owned());
+
+    let tmp = input
+        .iter()
+        .filter(|line| !line.is_empty())
+        .map(|line| parse(line, 0))
+        .map(|(value, _)| value)
+        .collect_vec();
+
+    let tmp = sort(tmp);
+
+    println!("Sorted");
+
+    for value in tmp {
+        println!("{}", value);
+    }
+
+    0
+}
+
 #[derive(Clone, Debug)]
 enum Value {
     Number(usize),
     List(Box<Vec<Value>>),
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::List(list) => {
+                let formatted = list.iter().map(|item| format!("{item}")).join(", ");
+                write!(f, "[{formatted}]")
+            }
+            Self::Number(num) => write!(f, "{num}"),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -132,4 +169,46 @@ fn compare(left: &Value, right: &Value) -> Comparison {
         (List(_), Number(_)) => compare(left, &List(Box::new(vec![right.clone()]))),
         (Number(_), List(_)) => compare(&List(Box::new(vec![left.clone()])), right),
     }
+}
+
+fn sort(mut list: Vec<Value>) -> Vec<Value> {
+    let len = list.len();
+    if len == 0 || len == 1 {
+        return list;
+    }
+
+    if len == 2 {
+        return match compare(&list[0], &list[1]) {
+            Comparison::NotOk => {
+                println!("Going to reverse: {:?}", list);
+                list.reverse();
+                list
+            }
+            _ => list,
+        };
+    }
+
+    let half = len / 2;
+    let pivot = list.remove(half);
+
+    let mut less = vec![];
+    let mut more = vec![];
+
+    for value in list {
+        match compare(&value, &pivot) {
+            Comparison::NotOk => {
+                println!(" == Comparison ==");
+                println!("  Pivot: {}", pivot);
+                println!("  This is more: {}", value);
+                more.push(value);
+            }
+            _ => less.push(value),
+        }
+    }
+
+    let mut sorted = sort(less);
+    sorted.push(pivot);
+    sorted.extend(sort(more));
+
+    sorted
 }
