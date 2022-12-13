@@ -6,7 +6,7 @@ use itertools::Itertools;
 pub fn part_1() -> usize {
     read_input_split_by_lines_number(13, 3)
         .iter()
-        .map(|input| parse_input(input))
+        .map(|input| parse_pair(input))
         .map(|(left, right)| compare(&left, &right))
         .enumerate()
         .filter(|(_, comparison)| comparison == &Comparison::Ok)
@@ -69,7 +69,7 @@ enum Comparison {
     Next,
 }
 
-fn parse_input(input: &str) -> (Value, Value) {
+fn parse_pair(input: &str) -> (Value, Value) {
     let lines = input.lines().collect_vec();
 
     let left = parse(lines[0]);
@@ -159,6 +159,7 @@ fn compare(left: &Value, right: &Value) -> Comparison {
 
 fn sort(mut list: Vec<Value>) -> Vec<Value> {
     let len = list.len();
+
     if len == 0 || len == 1 {
         return list;
     }
@@ -173,8 +174,7 @@ fn sort(mut list: Vec<Value>) -> Vec<Value> {
         };
     }
 
-    let half = len / 2;
-    let pivot = list.remove(half);
+    let pivot = list.remove(len / 2);
 
     let mut less = vec![];
     let mut more = vec![];
