@@ -15,14 +15,14 @@ pub fn part_1() -> usize {
 }
 
 pub fn part_2() -> usize {
-    let mut input = read_lines(13);
-    let (two_value, _) = parse("[[2]]", 0);
-    let (six_value, _) = parse("[[6]]", 0);
+    let input = read_lines(13);
+    let (two_value, _) = parse("[[2]]");
+    let (six_value, _) = parse("[[6]]");
 
     let mut tmp = input
         .iter()
         .filter(|line| !line.is_empty())
-        .map(|line| parse(line, 0))
+        .map(|line| parse(line))
         .map(|(value, _)| value)
         .collect_vec();
 
@@ -72,18 +72,15 @@ enum Comparison {
 fn parse_input(input: &str) -> (Value, Value) {
     let lines = input.lines().collect_vec();
 
-    let left = parse(lines[0], 0);
-    let right = parse(lines[1], 0);
+    let left = parse(lines[0]);
+    let right = parse(lines[1]);
 
     (left.0, right.0)
 }
 
-fn parse(input: &str, nested: usize) -> (Value, usize) {
-    // println!("{}Parse:    {input}", " ".repeat(nested));
+fn parse(input: &str) -> (Value, usize) {
     if input.starts_with('[') {
-        let value = get_list(input, nested + 2);
-        // println!("{}Return parsed [list]:  {:?}", " ".repeat(nested), value);
-        return value;
+        return get_list(input);
     }
 
     let mut inspected = 0;
@@ -100,38 +97,26 @@ fn parse(input: &str, nested: usize) -> (Value, usize) {
     }
 
     let value = Value::Number(number.parse::<usize>().unwrap());
-    // println!(
-    //     "{}Return parsed [value]: ({:?}, {inspected})",
-    //     " ".repeat(nested),
-    //     value
-    // );
+
     (value, inspected)
 }
 
-fn get_list(input: &str, nested: usize) -> (Value, usize) {
-    // println!("{}Get list: {input}", " ".repeat(nested));
+fn get_list(input: &str) -> (Value, usize) {
     let mut inspected = 1;
 
     let mut output = Box::new(vec![]);
 
     if input.starts_with("[]") {
         inspected += 1;
-        // println!(
-        //     "{}Return list [empty]:   ({:?}, {inspected})",
-        //     " ".repeat(nested),
-        //     output
-        // );
         return (Value::List(output), inspected);
     }
 
     loop {
-        // println!("{}Loop start at {inspected}", " ".repeat(nested));
-        let (value, inspected_inner) = parse(&input[inspected..], nested + 2);
+        let (value, inspected_inner) = parse(&input[inspected..]);
         output.push(value);
         inspected += inspected_inner;
 
         if &input[inspected..inspected + 1] == "]" {
-            // println!("{}End oof list at {}", " ".repeat(nested), inspected + 1);
             inspected += 1;
             break;
         }
@@ -139,12 +124,6 @@ fn get_list(input: &str, nested: usize) -> (Value, usize) {
         inspected += 1;
     }
 
-    // println!(
-    //     "{}Retur list [filled]: ({:?}, {})",
-    //     " ".repeat(nested),
-    //     output,
-    //     inspected
-    // );
     (Value::List(output), inspected)
 }
 
