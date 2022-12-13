@@ -16,28 +16,35 @@ pub fn part_1() -> usize {
 
 pub fn part_2() -> usize {
     let mut input = read_lines(13);
-    input.push("[[6]]".to_owned());
-    input.push("[[2]]".to_owned());
+    let (two_value, _) = parse("[[2]]", 0);
+    let (six_value, _) = parse("[[6]]", 0);
 
-    let tmp = input
+    let mut tmp = input
         .iter()
         .filter(|line| !line.is_empty())
         .map(|line| parse(line, 0))
         .map(|(value, _)| value)
         .collect_vec();
 
+    tmp.push(two_value.clone());
+    tmp.push(six_value.clone());
+
     let tmp = sort(tmp);
 
-    println!("Sorted");
-
-    for value in tmp {
-        println!("{}", value);
-    }
-
-    0
+    get_value_index(&two_value, &tmp) * get_value_index(&six_value, &tmp)
 }
 
-#[derive(Clone, Debug)]
+fn get_value_index(lookup_value: &Value, list: &[Value]) -> usize {
+    let (index, _) = list
+        .iter()
+        .enumerate()
+        .find(|(_, value)| *value == lookup_value)
+        .unwrap();
+
+    index + 1
+}
+
+#[derive(Clone, Debug, PartialEq)]
 enum Value {
     Number(usize),
     List(Box<Vec<Value>>),
