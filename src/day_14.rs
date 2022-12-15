@@ -57,25 +57,24 @@ pub fn part_1() {
     cave.insert(particle.clone(), CellType::Sand);
 
     let mut counter = 0;
-    let mut particles = 1;
+    let mut particles = 0;
+    let floor = max.y + 1;
+
     loop {
-        let (updated_cave, next_particle) = tick(cave, &particle);
+        let (updated_cave, next_particle, add_more) = tick(cave, &floor, &particle);
+
         cave = updated_cave;
+        if !add_more {
+            println!("No more particles can be held");
+            break;
+        }
 
         counter += 1;
-
-        if counter % 100 == 0 {
-            println!("Counter: {counter}");
-        }
 
         if let Some(next_coord) = next_particle {
             particle = next_coord;
             continue;
         } else {
-            if particles >= 500 {
-                break;
-            }
-
             particles += 1;
             particle = Coord { x: 500, y: 0 };
             cave.insert(particle.clone(), CellType::Sand);
@@ -83,6 +82,7 @@ pub fn part_1() {
     }
 
     println!("Counter end: {counter}");
+    println!("Added {particles} particles");
 
     for y in 0..=max.y {
         print!("{y}");
@@ -201,29 +201,34 @@ fn min_max(one: &usize, two: &usize) -> (usize, usize) {
     (*one.min(two), *one.max(two))
 }
 
-fn tick(cave: Cave, particle: &Coord) -> (Cave, Option<Coord>) {
+fn tick(cave: Cave, floor: &usize, particle: &Coord) -> (Cave, Option<Coord>, bool) {
     let next_coord = particle.down();
+
+    if next_coord.y >= *floor {
+        return (cave, None, false);
+    }
+
     let (cave, moved) = move_particle(cave, particle, &next_coord);
 
     if moved {
-        return (cave, Some(next_coord));
+        return (cave, Some(next_coord), true);
     }
 
     let next_coord = particle.down_left();
     let (cave, moved) = move_particle(cave, particle, &next_coord);
 
     if moved {
-        return (cave, Some(next_coord));
+        return (cave, Some(next_coord), true);
     }
 
     let next_coord = particle.down_right();
     let (cave, moved) = move_particle(cave, particle, &next_coord);
 
     if moved {
-        return (cave, Some(next_coord));
+        return (cave, Some(next_coord), true);
     }
 
-    (cave, None)
+    (cave, None, true)
 }
 
 fn move_particle(mut cave: Cave, from: &Coord, to: &Coord) -> (Cave, bool) {
