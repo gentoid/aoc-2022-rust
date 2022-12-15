@@ -1,8 +1,11 @@
+use core::fmt;
 use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
 
 use crate::utils::read_lines;
+
+type Cave = HashMap<Coord, CellType>;
 
 pub fn part_1() {
     let walls = read_lines(14)
@@ -30,7 +33,7 @@ pub fn part_1() {
     println!("Min: {:?}", min);
     println!("Max: {:?}", max);
 
-    let mut cave = HashMap::new();
+    let mut cave: Cave = HashMap::new();
 
     for (from, to) in pairs {
         if from.x != to.x {
@@ -50,11 +53,44 @@ pub fn part_1() {
         }
     }
 
+    let mut particle = Coord { x: 500, y: 0 };
+    cave.insert(particle.clone(), CellType::Sand);
+
+    let mut counter = 0;
+    let mut particles = 1;
+    loop {
+        let (updated_cave, next_particle) = tick(cave, &particle);
+        cave = updated_cave;
+
+        counter += 1;
+
+        if counter % 100 == 0 {
+            println!("Counter: {counter}");
+        }
+
+        if let Some(next_coord) = next_particle {
+            particle = next_coord;
+            continue;
+        } else {
+            if particles >= 500 {
+                break;
+            }
+
+            particles += 1;
+            particle = Coord { x: 500, y: 0 };
+            cave.insert(particle.clone(), CellType::Sand);
+        }
+    }
+
+    println!("Counter end: {counter}");
+
     for y in 0..=max.y {
         print!("{y}");
         for x in min.x..=max.x {
-            if cave.contains_key(&Coord { x, y }) {
-                print!("#");
+            if x == 500 && y == 0 {
+                print!("S");
+            } else if let Some(cell_type) = cave.get(&Coord { x, y }) {
+                print!("{cell_type}");
             } else {
                 print!(".");
             }
@@ -66,6 +102,17 @@ pub fn part_1() {
 enum CellType {
     Wall,
     Sand,
+}
+
+impl fmt::Display for CellType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let display_as = match self {
+            CellType::Sand => 'o',
+            CellType::Wall => '#',
+        };
+
+        write!(f, "{display_as}")
+    }
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd)]
@@ -97,6 +144,27 @@ impl Coord {
         Self {
             x: one.x.max(other.x),
             y: one.y.max(other.y),
+        }
+    }
+
+    fn down(&self) -> Self {
+        Self {
+            x: self.x,
+            y: self.y + 1,
+        }
+    }
+
+    fn down_left(&self) -> Self {
+        Self {
+            x: self.x - 1,
+            y: self.y + 1,
+        }
+    }
+
+    fn down_right(&self) -> Self {
+        Self {
+            x: self.x + 1,
+            y: self.y + 1,
         }
     }
 }
@@ -131,4 +199,39 @@ fn by_condition(
 
 fn min_max(one: &usize, two: &usize) -> (usize, usize) {
     (*one.min(two), *one.max(two))
+}
+
+fn tick(cave: Cave, particle: &Coord) -> (Cave, Option<Coord>) {
+    let next_coord = particle.down();
+    let (cave, moved) = move_particle(cave, particle, &next_coord);
+
+    if moved {
+        return (cave, Some(next_coord));
+    }
+
+    let next_coord = particle.down_left();
+    let (cave, moved) = move_particle(cave, particle, &next_coord);
+
+    if moved {
+        return (cave, Some(next_coord));
+    }
+
+    let next_coord = particle.down_right();
+    let (cave, moved) = move_particle(cave, particle, &next_coord);
+
+    if moved {
+        return (cave, Some(next_coord));
+    }
+
+    (cave, None)
+}
+
+fn move_particle(mut cave: Cave, from: &Coord, to: &Coord) -> (Cave, bool) {
+    if !cave.contains_key(&to) {
+        let value = cave.remove(&from).unwrap();
+        cave.insert(to.clone(), value);
+        return (cave, true);
+    }
+
+    (cave, false)
 }
