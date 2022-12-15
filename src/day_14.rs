@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
 
@@ -7,6 +7,7 @@ use crate::utils::read_lines;
 pub fn part_1() {
     let walls = read_lines(14)
         .iter()
+        .unique()
         .map(|line| parse_line(line))
         .collect_vec();
 
@@ -24,17 +25,35 @@ pub fn part_1() {
         }
     }
 
-    println!("Found {} unique pairs:\n{:#?}", pairs.len(), pairs);
-
-    // let mut coords = walls[0];
+    println!("Found {} unique pairs", pairs.len());
 
     println!("Min: {:?}", min);
     println!("Max: {:?}", max);
 
+    let mut cave = HashMap::new();
+
+    for (from, to) in pairs {
+        if from.x != to.x {
+            let (min, max) = min_max(&from.x, &to.x);
+            let y = from.y;
+
+            for x in min..=max {
+                cave.insert(Coord { x, y }, CellType::Wall);
+            }
+        } else if from.x != to.y {
+            let (min, max) = min_max(&from.y, &to.y);
+
+            let x = from.x;
+            for y in min..=max {
+                cave.insert(Coord { x, y }, CellType::Wall);
+            }
+        }
+    }
+
     for y in 0..=max.y {
         print!("{y}");
         for x in min.x..=max.x {
-            if walls[0].contains(&Coord { x, y }) {
+            if cave.contains_key(&Coord { x, y }) {
                 print!("#");
             } else {
                 print!(".");
@@ -42,6 +61,11 @@ pub fn part_1() {
         }
         println!("");
     }
+}
+
+enum CellType {
+    Wall,
+    Sand,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd)]
@@ -103,4 +127,8 @@ fn by_condition(
             .fold(result.clone(), |inner, coord| select(&inner, coord));
         select(&result, &in_wall)
     })
+}
+
+fn min_max(one: &usize, two: &usize) -> (usize, usize) {
+    (*one.min(two), *one.max(two))
 }
