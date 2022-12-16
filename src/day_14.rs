@@ -5,10 +5,16 @@ use itertools::Itertools;
 
 use crate::utils::read_lines;
 
+type Wall = Vec<Coord>;
 type Cave = HashMap<Coord, CellType>;
+type Pairs = HashSet<(Coord, Coord)>;
 
-pub fn part_1() {
-    let walls = read_lines(14)
+pub fn part_1() -> usize {
+    solve(&read_lines(14))
+}
+
+pub fn solve(input: &[String]) -> usize {
+    let walls = input
         .iter()
         .unique()
         .map(|line| parse_line(line))
@@ -17,43 +23,16 @@ pub fn part_1() {
     let min = by_condition(&walls, Coord::max(), Coord::min_of);
     let max = by_condition(&walls, Coord::min(), Coord::max_of);
 
-    let mut pairs = HashSet::new();
-
-    for wall in &walls {
-        for pair in wall.windows(2) {
-            let one = pair[0].clone();
-            let two = pair[1].clone();
-
-            pairs.insert(if one > two { (two, one) } else { (one, two) });
-        }
-    }
+    let pairs = extract_pairs(&walls);
 
     println!("Found {} unique pairs", pairs.len());
 
     println!("Min: {:?}", min);
     println!("Max: {:?}", max);
 
-    let mut cave: Cave = HashMap::new();
+    let mut cave: Cave = prepare_cave(pairs);
 
-    for (from, to) in pairs {
-        if from.x != to.x {
-            let (min, max) = min_max(&from.x, &to.x);
-            let y = from.y;
-
-            for x in min..=max {
-                cave.insert(Coord { x, y }, CellType::Wall);
-            }
-        } else if from.x != to.y {
-            let (min, max) = min_max(&from.y, &to.y);
-
-            let x = from.x;
-            for y in min..=max {
-                cave.insert(Coord { x, y }, CellType::Wall);
-            }
-        }
-    }
-
-    let mut particle = Coord { x: 500, y: 0 };
+    let mut particle = start_position();
     cave.insert(particle.clone(), CellType::Sand);
 
     let mut counter = 0;
@@ -76,7 +55,7 @@ pub fn part_1() {
             continue;
         } else {
             particles += 1;
-            particle = Coord { x: 500, y: 0 };
+            particle = start_position();
             cave.insert(particle.clone(), CellType::Sand);
         }
     }
@@ -97,6 +76,8 @@ pub fn part_1() {
         }
         println!("");
     }
+
+    particles
 }
 
 enum CellType {
@@ -239,4 +220,47 @@ fn move_particle(mut cave: Cave, from: &Coord, to: &Coord) -> (Cave, bool) {
     }
 
     (cave, false)
+}
+
+fn start_position() -> Coord {
+    Coord { x: 500, y: 0 }
+}
+
+fn extract_pairs(walls: &[Wall]) -> Pairs {
+    let mut pairs = HashSet::new();
+
+    for wall in walls {
+        for pair in wall.windows(2) {
+            let one = pair[0].clone();
+            let two = pair[1].clone();
+
+            pairs.insert(if one > two { (two, one) } else { (one, two) });
+        }
+    }
+
+    pairs
+}
+
+fn prepare_cave(pairs: Pairs) -> Cave {
+    let mut cave = HashMap::new();
+
+    for (from, to) in pairs {
+        if from.x != to.x {
+            let (min, max) = min_max(&from.x, &to.x);
+            let y = from.y;
+
+            for x in min..=max {
+                cave.insert(Coord { x, y }, CellType::Wall);
+            }
+        } else if from.x != to.y {
+            let (min, max) = min_max(&from.y, &to.y);
+            let x = from.x;
+
+            for y in min..=max {
+                cave.insert(Coord { x, y }, CellType::Wall);
+            }
+        }
+    }
+
+    cave
 }
