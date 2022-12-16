@@ -26,12 +26,7 @@ fn solve(input: &[String], bottom_type: BottomType) -> usize {
 
     let pairs = extract_pairs(&walls);
 
-    println!("Found {} unique pairs", pairs.len());
-
     let mut cave: Cave = prepare_cave(pairs, bottom_type);
-
-    println!("Min: {:?}", cave.min);
-    println!("Max: {:?}", cave.max);
 
     cave.new_particle();
 
@@ -39,28 +34,12 @@ fn solve(input: &[String], bottom_type: BottomType) -> usize {
         cave.tick();
 
         if cave.fullfilled {
-            println!("No more particles can be held");
             break;
         }
 
         if let None = cave.current_particle {
             cave.new_particle();
         }
-    }
-
-    for y in 0..=cave.max.y {
-        print!("{y}");
-        for x in cave.min.x..=cave.max.x {
-            let coord = Coord { x, y };
-            if coord == cave.start_coord {
-                print!("S");
-            } else if let Some(cell_type) = cave.cells.get(&coord) {
-                print!("{cell_type}");
-            } else {
-                print!(".");
-            }
-        }
-        println!("");
     }
 
     cave.cells
@@ -97,7 +76,6 @@ struct Cave {
     start_coord: Coord,
     current_particle: Option<Coord>,
     fullfilled: bool,
-    min: Coord,
     max: Coord,
 }
 
@@ -109,7 +87,6 @@ impl Cave {
             .map(|(coord, _)| coord.clone())
             .collect_vec();
 
-        let min = wall_cells.iter().fold(Coord::max(), Coord::min_of);
         let mut max = wall_cells.iter().fold(Coord::min(), Coord::max_of);
 
         if bottom_type == BottomType::Floor {
@@ -126,7 +103,6 @@ impl Cave {
             start_coord: Coord { x: 500, y: 0 },
             current_particle: None,
             fullfilled: false,
-            min,
             max,
         }
     }
@@ -199,20 +175,6 @@ struct Coord {
 impl Coord {
     fn min() -> Self {
         Self { x: 0, y: 0 }
-    }
-
-    fn max() -> Self {
-        Self {
-            x: usize::MAX,
-            y: usize::MAX,
-        }
-    }
-
-    fn min_of(one: Self, other: &Self) -> Self {
-        Self {
-            x: one.x.min(other.x),
-            y: one.y.min(other.y),
-        }
     }
 
     fn max_of(one: Self, other: &Self) -> Self {
