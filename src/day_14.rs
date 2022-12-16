@@ -10,10 +10,14 @@ type Cells = HashMap<Coord, CellType>;
 type Pairs = HashSet<(Coord, Coord)>;
 
 pub fn part_1() -> usize {
-    solve(&read_lines(14))
+    solve(&read_lines(14), BottomType::Void)
 }
 
-pub fn solve(input: &[String]) -> usize {
+pub fn part_2() -> usize {
+    solve(&read_lines(14), BottomType::Floor)
+}
+
+fn solve(input: &[String], bottom_type: BottomType) -> usize {
     let walls = input
         .iter()
         .unique()
@@ -24,7 +28,7 @@ pub fn solve(input: &[String]) -> usize {
 
     println!("Found {} unique pairs", pairs.len());
 
-    let mut cave: Cave = prepare_cave(pairs);
+    let mut cave: Cave = prepare_cave(pairs, bottom_type);
 
     println!("Min: {:?}", cave.min);
     println!("Max: {:?}", cave.max);
@@ -82,45 +86,48 @@ impl fmt::Display for CellType {
     }
 }
 
+#[derive(Clone, PartialEq)]
 enum BottomType {
     Floor,
     Void,
-}
-
-struct Bottom {
-    bottom_type: BottomType,
-    add_levels: usize,
 }
 
 struct Cave {
     cells: Cells,
     start_coord: Coord,
     current_particle: Option<Coord>,
-    bottom: Bottom,
     fullfilled: bool,
     min: Coord,
     max: Coord,
 }
 
 impl Cave {
-    fn new(cells: Cells) -> Self {
+    fn new(mut cells: Cells, bottom_type: BottomType) -> Self {
         let wall_cells = cells
             .iter()
             .filter(|(_, cell_type)| **cell_type == CellType::Wall)
             .map(|(coord, _)| coord.clone())
             .collect_vec();
 
+        let min = wall_cells.iter().fold(Coord::max(), Coord::min_of);
+        let mut max = wall_cells.iter().fold(Coord::min(), Coord::max_of);
+
+        if bottom_type == BottomType::Floor {
+            max.y += 2;
+            let y = max.y;
+
+            for x in (500 - y - 1)..=(500 + y + 1) {
+                cells.insert(Coord { x, y }, CellType::Wall);
+            }
+        }
+
         Self {
             cells,
             start_coord: Coord { x: 500, y: 0 },
             current_particle: None,
-            bottom: Bottom {
-                bottom_type: BottomType::Void,
-                add_levels: 0,
-            },
             fullfilled: false,
-            min: wall_cells.iter().fold(Coord::max(), Coord::min_of),
-            max: wall_cells.iter().fold(Coord::min(), Coord::max_of),
+            min,
+            max,
         }
     }
 
@@ -165,7 +172,7 @@ impl Cave {
     }
 
     fn move_particle(&mut self, from: &Coord, to: Coord) -> bool {
-        if from.y >= (self.max.y + self.bottom.add_levels) {
+        if from.y >= self.max.y {
             self.fullfilled = true;
             self.current_particle = None;
             self.cells.remove(&from);
@@ -271,7 +278,7 @@ fn extract_pairs(walls: &[WallCorners]) -> Pairs {
     pairs
 }
 
-fn prepare_cave(pairs: Pairs) -> Cave {
+fn prepare_cave(pairs: Pairs, bottom_type: BottomType) -> Cave {
     let mut cells = HashMap::new();
 
     for (from, to) in pairs {
@@ -292,5 +299,5 @@ fn prepare_cave(pairs: Pairs) -> Cave {
         }
     }
 
-    Cave::new(cells)
+    Cave::new(cells, bottom_type)
 }
