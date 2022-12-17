@@ -1,4 +1,4 @@
-use std::{fmt::Debug, ops::Range, os::windows::process};
+use std::{fmt::Debug, ops::Range};
 
 use itertools::Itertools;
 use regex::Regex;
@@ -11,35 +11,11 @@ pub fn part_1() -> usize {
 
     let y = 2000000;
 
-    let min_x = scanners
-        .iter()
-        .map(|scanner| scanner.coord.x - scanner.radius as i32)
-        .min()
-        .unwrap();
-
-    let max_x = scanners
-        .iter()
-        .map(|scanner| scanner.coord.x + scanner.radius as i32)
-        .max()
-        .unwrap();
-
     let beacons_on_line = beacons
         .into_iter()
         .unique()
         .filter(|beacon| beacon.y == y)
         .count();
-
-    // (min_x..=max_x)
-    //     .map(|x| {
-    //         let coord = Coord { x, y };
-    //         scanners
-    //             .iter()
-    //             .find(|scanner| scanner.can_be_scanned(&coord))
-    //             .is_some()
-    //     })
-    //     .filter(|found| *found)
-    //     .count()
-    //     - beacons_on_line
 
     let mut ranges = scanners
         .iter()
@@ -47,27 +23,18 @@ pub fn part_1() -> usize {
         .filter(|range| !range.is_empty())
         .collect_vec();
 
-    println!("Ranges:\n{:?}", ranges);
-
-    // let mut merged_ranges = vec![];
-
-    let mut iterations = 0;
     loop {
         let (merged, merged_at_least_once) = merge_ranges(&ranges);
         ranges = merged;
-        iterations += 1;
 
         if !merged_at_least_once {
             break;
         }
-
-        println!("[{iterations}] {:?}", ranges);
     }
 
-    println!("Iterations: {iterations}");
-    println!("Merged ranges:\n{:?}", ranges);
+    assert!(ranges.len() == 1);
 
-    0
+    ranges[0].len() - beacons_on_line
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -82,13 +49,6 @@ struct Sensor {
 }
 
 impl Sensor {
-    fn can_be_scanned(&self, coord: &Coord) -> bool {
-        let diff_x = self.coord.x.abs_diff(coord.x);
-        let diff_y = self.coord.y.abs_diff(coord.y);
-
-        (diff_x + diff_y) as usize <= self.radius
-    }
-
     fn range_for_y(&self, y: &i32) -> Range<i32> {
         let y_diff = self.coord.y.abs_diff(*y) as i32;
 
@@ -152,15 +112,12 @@ where
     let mut merged_ranges = vec![];
     let mut processed_ranges = vec![];
 
-    println!("  Got {} ranges", ranges.len());
-
     for (index, r1) in ranges.iter().enumerate() {
         let inner_start = index + 1;
         let mut merged = false;
 
         if inner_start >= ranges.len() {
             if !processed_ranges.contains(&index) {
-                println!("  [{index}] Adding the last item in the range");
                 merged_ranges.push(r1.clone());
             }
             break;
@@ -177,9 +134,7 @@ where
                 continue;
             }
 
-            println!("  Compare {:?} and {:?}", r1, r2);
             if let Some(range) = range_union(r1, r2) {
-                println!("    [{index}], [{inner_index}] Merged to: {:?}", range);
                 merged_ranges.push(range);
                 processed_ranges.push(index);
                 processed_ranges.push(inner_index);
@@ -190,10 +145,7 @@ where
         }
 
         if !merged {
-            println!("    [{index}] Wasn't nerged, so push too");
             merged_ranges.push(r1.clone());
-        } else {
-            println!("    [{index}] Was already merged");
         }
     }
 
