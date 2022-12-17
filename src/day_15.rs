@@ -24,6 +24,24 @@ pub fn part_1() -> usize {
     ranges[0].len() - beacons_on_line
 }
 
+pub fn part_2() -> u64 {
+    let (sensors, _): (Vec<Sensor>, Vec<Coord>) =
+        read_lines(15).iter().map(|line| parse_line(&line)).unzip();
+
+    let min = 0;
+    let max = 4_000_000;
+
+    for y in min..=max {
+        let ranges = ranges_for_y(&sensors, &y);
+
+        if ranges.len() > 1 {
+            return ranges[0].end as u64 * max as u64 + y as u64;
+        }
+    }
+
+    unreachable!()
+}
+
 #[derive(Clone, Eq, Hash, PartialEq)]
 struct Coord {
     x: i32,
