@@ -6,7 +6,7 @@ use regex::Regex;
 use crate::utils::read_lines;
 
 pub fn part_1() -> usize {
-    let (scanners, beacons): (Vec<Sensor>, Vec<Coord>) =
+    let (sensors, beacons): (Vec<Sensor>, Vec<Coord>) =
         read_lines(15).iter().map(|line| parse_line(&line)).unzip();
 
     let y = 2000000;
@@ -17,20 +17,7 @@ pub fn part_1() -> usize {
         .filter(|beacon| beacon.y == y)
         .count();
 
-    let mut ranges = scanners
-        .iter()
-        .map(|sensor| sensor.range_for_y(&y))
-        .filter(|range| !range.is_empty())
-        .collect_vec();
-
-    loop {
-        let (merged, merged_at_least_once) = merge_ranges(&ranges);
-        ranges = merged;
-
-        if !merged_at_least_once {
-            break;
-        }
-    }
+    let ranges = ranges_for_y(&sensors, &y);
 
     assert!(ranges.len() == 1);
 
@@ -150,4 +137,23 @@ where
     }
 
     (merged_ranges, merged_at_least_once)
+}
+
+fn ranges_for_y(sensors: &[Sensor], y: &i32) -> Vec<Range<i32>> {
+    let mut ranges = sensors
+        .iter()
+        .map(|sensor| sensor.range_for_y(y))
+        .filter(|range| !range.is_empty())
+        .collect_vec();
+
+    loop {
+        let (merged, merged_at_least_once) = merge_ranges(&ranges);
+        ranges = merged;
+
+        if !merged_at_least_once {
+            break;
+        }
+    }
+
+    ranges
 }
