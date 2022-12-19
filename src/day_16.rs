@@ -24,7 +24,7 @@ Valve JJ has flow rate=21; tunnel leads to valve II"
             sum
         });
 
-    let actions = find_most_effective(&valves, &[], 30);
+    let actions = find_most_effective(&valves, 30, State::new("AA"));
 
     println!("The most effective: {:?}", actions);
     actions.1
@@ -48,64 +48,69 @@ enum ActionType {
 
 type Action = (ActionType, String);
 
-fn find_most_effective(
-    valves: &Valves,
-    actions: &[Action],
-    minutes: usize,
-) -> (Vec<Action>, usize) {
-    if actions.len() + 1 >= minutes {
-        return (actions.to_vec(), calculate_flow(valves, minutes, actions));
+#[derive(Clone, Default)]
+struct State {
+    current: String,
+    opened: Vec<String>,
+    since_last_opened: Vec<String>,
+    actions: Vec<Action>,
+}
+
+impl State {
+    fn new(init: &str) -> Self {
+        Self {
+            current: init.to_owned(),
+            ..Default::default()
+        }
     }
 
-    let last_open_index = actions
-        .iter()
-        .enumerate()
-        .filter(|(_, a)| a.0 == ActionType::Open)
-        .map(|(index, _)| index)
-        .last()
-        .unwrap_or(0);
+    fn move_to(&mut self, dest: &str) {
+        self.current = dest.to_owned();
+        self.actions.push((ActionType::Move, dest.to_owned()));
+        self.since_last_opened.push(dest.to_owned());
+    }
 
-    let visited_after_last_open = actions
-        .iter()
-        .skip(last_open_index)
-        .map(|a| a.1.clone())
-        .collect_vec();
+    fn open(&mut self, valve: &str) {
+        self.opened.push(valve.to_owned());
+        self.actions.push((ActionType::Open, valve.to_owned()));
+        self.since_last_opened = vec![valve.to_owned()];
+    }
+}
 
-    let current = valves
-        .get(
-            &actions
-                .last()
-                .map(|a| a.1.clone())
-                .unwrap_or("AA".to_owned()),
-        )
-        .unwrap();
+fn find_most_effective(valves: &Valves, minutes: usize, state: State) -> (Vec<Action>, usize) {
+    if state.actions.len() + 1 >= minutes {
+        return (
+            state.actions.to_vec(),
+            calculate_flow(valves, minutes, &state.actions),
+        );
+    }
 
-    let opened = actions
-        .iter()
-        .filter(|a| a.0 == ActionType::Open)
-        .map(|a| a.1.clone())
-        .collect_vec();
+    let current = valves.get(&state.current).unwrap();
 
-    let mut tmp = vec![];
+    let mut variants = vec![];
 
     for valve_name in current
         .leads_to
         .iter()
-        .filter(|name| !visited_after_last_open.contains(name))
+        .filter(|name| !state.since_last_opened.contains(name))
     {
         let valve = valves.get(valve_name).unwrap();
-        if !opened.contains(valve_name) && valve.rate > 0 {
-            let mut more_actions = actions.to_vec();
-            more_actions.push((ActionType::Move, valve_name.clone()));
-            more_actions.push((ActionType::Open, valve_name.clone()));
-            tmp.push(find_most_effective(valves, &more_actions, minutes));
+
+        let mut state = state.clone();
+        state.move_to(&valve_name);
+
+        if !state.opened.contains(&valve_name) && valve.rate > 0 {
+            let mut state = state.clone();
+            state.open(&valve_name);
+
+            variants.push(find_most_effective(valves, minutes, state));
         }
-        let mut more_actions = actions.to_vec();
-        more_actions.push((ActionType::Move, valve_name.clone()));
-        tmp.push(find_most_effective(valves, &more_actions, minutes));
+
+        variants.push(find_most_effective(valves, minutes, state));
     }
 
-    tmp.into_iter()
+    variants
+        .into_iter()
         .max_by(|a, b| a.1.cmp(&b.1))
         .unwrap_or((vec![], 0))
 }
