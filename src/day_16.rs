@@ -17,12 +17,28 @@ Valve HH has flow rate=22; tunnel leads to valve GG
 Valve II has flow rate=0; tunnels lead to valves AA, JJ
 Valve JJ has flow rate=21; tunnel leads to valve II"
         .lines();
-    let valves = input
+    let mut valves = input
         .map(|line| parse_line(line))
         .fold(HashMap::new(), |mut sum, valve| {
             sum.insert(valve.name.clone(), valve);
             sum
         });
+
+    let valves_clone = valves.clone();
+
+    let useless = valves_clone
+        .values()
+        .filter(|v| v.links.len() == 2 && v.rate == 0)
+        .collect_vec();
+
+    for v in useless {
+        let tmp = valves.get(&v.name).unwrap().clone();
+
+        valves = optimize(valves, &tmp.links[0].to, &v.name, &tmp.links[1]);
+        valves = optimize(valves, &tmp.links[1].to, &v.name, &tmp.links[0]);
+
+        valves.remove(&v.name);
+    }
 
     let actions = find_most_effective(&valves, 30, State::new("AA"));
 
@@ -33,11 +49,16 @@ Valve JJ has flow rate=21; tunnel leads to valve II"
 type Valves = HashMap<String, Valve>;
 
 #[derive(Clone, Debug)]
+struct Link {
+    to: String,
+    length: usize,
+}
+
+#[derive(Clone, Debug)]
 struct Valve {
     name: String,
     rate: usize,
-    leads_to: Vec<String>,
-    is_open: bool,
+    links: Vec<Link>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -46,7 +67,7 @@ enum ActionType {
     Open,
 }
 
-type Action = (ActionType, String);
+type Action = (ActionType, String, usize);
 
 #[derive(Clone, Default)]
 struct State {
@@ -64,21 +85,38 @@ impl State {
         }
     }
 
-    fn move_to(&mut self, dest: &str) {
-        self.current = dest.to_owned();
-        self.actions.push((ActionType::Move, dest.to_owned()));
-        self.since_last_opened.push(dest.to_owned());
+    fn move_to(&mut self, link: &Link) {
+        self.current = link.to.to_owned();
+        self.actions
+            .push((ActionType::Move, link.to.to_owned(), link.length));
+        self.since_last_opened.push(link.to.to_owned());
     }
 
     fn open(&mut self, valve: &str) {
         self.opened.push(valve.to_owned());
-        self.actions.push((ActionType::Open, valve.to_owned()));
+        self.actions.push((ActionType::Open, valve.to_owned(), 1));
         self.since_last_opened = vec![valve.to_owned()];
     }
 }
 
+fn optimize(mut valves: Valves, node: &str, from: &str, to: &Link) -> Valves {
+    // println!("Reconnect: {node} from {from} to {}", to.to);
+    let mut link = valves
+        .get_mut(node)
+        .unwrap()
+        .links
+        .iter_mut()
+        .find(|v| v.to == from)
+        .unwrap();
+    link.to = to.to.clone();
+    link.length += to.length;
+
+    valves
+}
+
 fn find_most_effective(valves: &Valves, minutes: usize, state: State) -> (Vec<Action>, usize) {
-    if state.actions.len() + 1 >= minutes {
+    let counter: usize = state.actions.iter().map(|a| a.2).sum();
+    if counter + 1 >= minutes {
         return (
             state.actions.to_vec(),
             calculate_flow(valves, minutes, &state.actions),
@@ -89,19 +127,19 @@ fn find_most_effective(valves: &Valves, minutes: usize, state: State) -> (Vec<Ac
 
     let mut variants = vec![];
 
-    for valve_name in current
-        .leads_to
+    for link in current
+        .links
         .iter()
-        .filter(|name| !state.since_last_opened.contains(name))
+        .filter(|link| !state.since_last_opened.contains(&link.to))
     {
-        let valve = valves.get(valve_name).unwrap();
+        let valve = valves.get(&link.to).unwrap();
 
         let mut state = state.clone();
-        state.move_to(&valve_name);
+        state.move_to(&link);
 
-        if !state.opened.contains(&valve_name) && valve.rate > 0 {
+        if !state.opened.contains(&link.to) && valve.rate > 0 {
             let mut state = state.clone();
-            state.open(&valve_name);
+            state.open(&link.to);
 
             variants.push(find_most_effective(valves, minutes, state));
         }
@@ -119,8 +157,16 @@ fn calculate_flow(valves: &Valves, minutes: usize, actions: &[Action]) -> usize 
     let mut add = 0;
     let mut output = 0;
 
+    let mut counter = 0;
     for action in actions {
-        output += add;
+        if action.2 + counter > minutes {
+            output += add * (minutes - counter);
+            counter += (minutes - counter);
+            break;
+        } else {
+            output += add * action.2;
+            counter += action.2;
+        }
 
         if action.0 == ActionType::Move {
             continue;
@@ -130,8 +176,8 @@ fn calculate_flow(valves: &Valves, minutes: usize, actions: &[Action]) -> usize 
         add += valve.rate;
     }
 
-    if minutes > actions.len() {
-        return output + add * (minutes - actions.len());
+    if minutes > counter {
+        return output + add * (minutes - counter);
     }
 
     output
@@ -144,12 +190,14 @@ fn parse_line(line: &str) -> Valve {
 
     let leads_to = captures[3]
         .split(", ")
-        .map(|valve| valve.to_owned())
+        .map(|valve| Link {
+            to: valve.to_owned(),
+            length: 1,
+        })
         .collect_vec();
 
     Valve {
-        is_open: false,
-        leads_to,
+        links: leads_to,
         name: captures[1].to_owned(),
         rate: captures[2].parse::<usize>().unwrap(),
     }
