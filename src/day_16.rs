@@ -6,23 +6,13 @@ use regex::Regex;
 use crate::utils::read_lines;
 
 pub fn part_1() -> usize {
-    let input = r"Valve AA has flow rate=0; tunnels lead to valves DD, II, BB
-Valve BB has flow rate=13; tunnels lead to valves CC, AA
-Valve CC has flow rate=2; tunnels lead to valves DD, BB
-Valve DD has flow rate=20; tunnels lead to valves CC, AA, EE
-Valve EE has flow rate=3; tunnels lead to valves FF, DD
-Valve FF has flow rate=0; tunnels lead to valves EE, GG
-Valve GG has flow rate=0; tunnels lead to valves FF, HH
-Valve HH has flow rate=22; tunnel leads to valve GG
-Valve II has flow rate=0; tunnels lead to valves AA, JJ
-Valve JJ has flow rate=21; tunnel leads to valve II"
-        .lines();
-    let mut valves = input
-        .map(|line| parse_line(line))
-        .fold(HashMap::new(), |mut sum, valve| {
+    let mut valves = read_lines(16).iter().map(|line| parse_line(line)).fold(
+        HashMap::new(),
+        |mut sum, valve| {
             sum.insert(valve.name.clone(), valve);
             sum
-        });
+        },
+    );
 
     let valves_clone = valves.clone();
 
@@ -40,10 +30,37 @@ Valve JJ has flow rate=21; tunnel leads to valve II"
         valves.remove(&v.name);
     }
 
-    let actions = find_most_effective(&valves, 30, State::new("AA"));
+    for v in &valves {
+        println!("{:?}", v);
+    }
 
-    println!("The most effective: {:?}", actions);
-    actions.1
+    // let mut counter = 0;
+    let mut tmp = go(valves, "AA");
+
+    loop {
+        if tmp.len() == 0 {
+            break;
+        }
+
+        // counter += 1;
+
+        let (link, v) = tmp[0].clone();
+
+        println!("======");
+        println!("Go: {:?}", link);
+
+        for val in v.values() {
+            println!("{:?}", val);
+        }
+
+        tmp = go(v, &link.to);
+    }
+
+    // let actions = find_most_effective(&valves, 30, State::new("AA"));
+
+    // println!("The most effective: {:?}", actions);
+    // actions.1
+    0
 }
 
 type Valves = HashMap<String, Valve>;
@@ -114,6 +131,36 @@ fn optimize(mut valves: Valves, node: &str, from: &str, to: &Link) -> Valves {
     valves
 }
 
+fn go(mut valves: Valves, from_name: &str) -> Vec<(Link, Valves)> {
+    let from = valves.remove(from_name).unwrap();
+    let mut output = vec![];
+
+    for (i1, v1) in from.links.iter().enumerate() {
+        let mut valves = valves.clone();
+
+        if !valves.contains_key(&v1.to) {
+            continue;
+        }
+
+        let links = &mut valves.get_mut(&v1.to).unwrap().links;
+        links.retain(|l| l.to != from_name);
+
+        for (i2, v2) in from.links.iter().enumerate() {
+            if i1 == i2 {
+                continue;
+            }
+            links.push(Link {
+                to: v2.to.clone(),
+                length: v1.length + v2.length,
+            });
+        }
+
+        output.push((v1.clone(), valves));
+    }
+
+    output
+}
+
 fn find_most_effective(valves: &Valves, minutes: usize, state: State) -> (Vec<Action>, usize) {
     let counter: usize = state.actions.iter().map(|a| a.2).sum();
     if counter + 1 >= minutes {
@@ -161,7 +208,7 @@ fn calculate_flow(valves: &Valves, minutes: usize, actions: &[Action]) -> usize 
     for action in actions {
         if action.2 + counter > minutes {
             output += add * (minutes - counter);
-            counter += (minutes - counter);
+            counter += minutes - counter;
             break;
         } else {
             output += add * action.2;
