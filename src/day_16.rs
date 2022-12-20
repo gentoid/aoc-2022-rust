@@ -6,13 +6,24 @@ use regex::Regex;
 use crate::utils::read_lines;
 
 pub fn part_1() -> usize {
-    let mut valves = read_lines(16).iter().map(|line| parse_line(line)).fold(
-        HashMap::new(),
-        |mut sum, valve| {
-            sum.insert(valve.name.clone(), valve);
-            sum
-        },
-    );
+    let input = r"Valve AA has flow rate=0; tunnels lead to valves DD, II, BB
+Valve BB has flow rate=13; tunnels lead to valves CC, AA
+Valve CC has flow rate=2; tunnels lead to valves DD, BB
+Valve DD has flow rate=20; tunnels lead to valves CC, AA, EE
+Valve EE has flow rate=3; tunnels lead to valves FF, DD
+Valve FF has flow rate=0; tunnels lead to valves EE, GG
+Valve GG has flow rate=0; tunnels lead to valves FF, HH
+Valve HH has flow rate=22; tunnel leads to valve GG
+Valve II has flow rate=0; tunnels lead to valves AA, JJ
+Valve JJ has flow rate=21; tunnel leads to valve II";
+    let mut valves =
+        input
+            .lines()
+            .map(|line| parse_line(line))
+            .fold(HashMap::new(), |mut sum, valve| {
+                sum.insert(valve.name.clone(), valve);
+                sum
+            });
 
     let valves_clone = valves.clone();
 
@@ -34,85 +45,80 @@ pub fn part_1() -> usize {
         println!("{:?}", v);
     }
 
-    // let mut counter = 0;
-    let mut tmp = go(valves, "AA");
+    let tmp = find(&vec![], &valves, 30, "AA", &[], &[]);
 
-    loop {
-        if tmp.len() == 0 {
-            break;
-        }
+    println!("{:?}", tmp);
 
-        // counter += 1;
+    calculate_flow(30, &tmp.unwrap().1, true);
 
-        let (link, v) = tmp[0].clone();
-
-        println!("======");
-        println!("Go: {:?}", link);
-
-        for val in v.values() {
-            println!("{:?}", val);
-        }
-
-        tmp = go(v, &link.to);
-    }
-
-    // let actions = find_most_effective(&valves, 30, State::new("AA"));
-
-    // println!("The most effective: {:?}", actions);
-    // actions.1
     0
 }
 
 type Valves = HashMap<String, Valve>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
+enum Action {
+    Move(Link),
+    Open(Valve),
+}
+
+impl Action {
+    fn name(&self) -> String {
+        match self {
+            Action::Move(link) => link.to.clone(),
+            Action::Open(valve) => valve.name.clone(),
+        }
+    }
+
+    fn minutes(&self) -> usize {
+        match self {
+            Action::Move(link) => link.length,
+            Action::Open(_) => 1,
+        }
+    }
+
+    fn to_string(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Action::Move(link) => write!(f, "Move({}, {})", link.to, link.length),
+            Action::Open(valve) => write!(f, "Open({}, {})", valve.name, valve.rate),
+        }
+    }
+}
+
+impl std::fmt::Display for Action {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.to_string(f)
+    }
+}
+
+impl std::fmt::Debug for Action {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.to_string(f)
+    }
+}
+
+#[derive(Clone)]
 struct Link {
     to: String,
     length: usize,
 }
 
-#[derive(Clone, Debug)]
+impl std::fmt::Debug for Link {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Link({}, {})", self.to, self.length)
+    }
+}
+
+#[derive(Clone)]
 struct Valve {
     name: String,
     rate: usize,
     links: Vec<Link>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-enum ActionType {
-    Move,
-    Open,
-}
-
-type Action = (ActionType, String, usize);
-
-#[derive(Clone, Default)]
-struct State {
-    current: String,
-    opened: Vec<String>,
-    since_last_opened: Vec<String>,
-    actions: Vec<Action>,
-}
-
-impl State {
-    fn new(init: &str) -> Self {
-        Self {
-            current: init.to_owned(),
-            ..Default::default()
-        }
-    }
-
-    fn move_to(&mut self, link: &Link) {
-        self.current = link.to.to_owned();
-        self.actions
-            .push((ActionType::Move, link.to.to_owned(), link.length));
-        self.since_last_opened.push(link.to.to_owned());
-    }
-
-    fn open(&mut self, valve: &str) {
-        self.opened.push(valve.to_owned());
-        self.actions.push((ActionType::Open, valve.to_owned(), 1));
-        self.since_last_opened = vec![valve.to_owned()];
+impl std::fmt::Debug for Valve {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Valve({}, {}, {:?})", self.name, self.rate, self.links)
     }
 }
 
@@ -131,100 +137,173 @@ fn optimize(mut valves: Valves, node: &str, from: &str, to: &Link) -> Valves {
     valves
 }
 
-fn go(mut valves: Valves, from_name: &str) -> Vec<(Link, Valves)> {
-    let from = valves.remove(from_name).unwrap();
+fn go(
+    valves: Valves,
+    from_name: &str,
+    visited: &[String],
+    opened: &[String],
+) -> Vec<(Vec<Action>, Valves, Vec<String>, Vec<String>)> {
+    let mut updated_valves = valves.clone();
+    let Some(from) = updated_valves.remove(from_name) else {
+    // println!("No key: {from_name} in {:?}", valves.keys());
+        // println!("{:?}", valves.keys());
+        return vec![];
+    };
     let mut output = vec![];
 
-    for (i1, v1) in from.links.iter().enumerate() {
-        let mut valves = valves.clone();
+    // println!("");
 
-        if !valves.contains_key(&v1.to) {
-            continue;
+    for (i1, l1) in from.links.iter().enumerate() {
+        if let Some(v) = updated_valves.get_mut(&l1.to) {
+            v.links.retain(|l| l.to != from_name);
         }
 
-        let links = &mut valves.get_mut(&v1.to).unwrap().links;
-        links.retain(|l| l.to != from_name);
-
-        for (i2, v2) in from.links.iter().enumerate() {
+        for (i2, l2) in from.links.iter().enumerate() {
             if i1 == i2 {
                 continue;
             }
-            links.push(Link {
-                to: v2.to.clone(),
-                length: v1.length + v2.length,
-            });
+
+            let new_length = l1.length + l2.length;
+            if let Some(v) = updated_valves.get_mut(&l1.to) {
+                if let Some(link) = v.links.iter_mut().find(|l| l.to == l2.to) {
+                    link.length = link.length.min(new_length);
+                } else {
+                    v.links.push(Link {
+                        to: l2.to.clone(),
+                        length: new_length,
+                    });
+                }
+            }
+        }
+    }
+
+    // println!("For {from_name} ppdated: {:?}", updated_valves);
+
+    for link in &from.links {
+        // println!("  Link to {:?}", link);
+
+        let valve = valves.get(&link.to).unwrap();
+
+        if !opened.contains(&valve.name) {
+            let mut actions = vec![];
+            actions.push(Action::Move(link.clone()));
+            let mut opened = opened.to_vec();
+            if valve.rate > 0 {
+                actions.push(Action::Open(valve.clone()));
+                opened.push(valve.name.to_owned());
+            }
+            output.push((actions, updated_valves.clone(), vec![], opened));
         }
 
-        output.push((v1.clone(), valves));
+        // TODO : improve it to not go same way twice
+        if !visited.contains(&link.to) {
+            let mut visited = visited.to_vec();
+            visited.push(from_name.to_owned());
+            output.push((
+                vec![Action::Move(link.clone())],
+                valves.clone(),
+                visited,
+                opened.to_vec(),
+            ));
+        }
     }
 
     output
 }
 
-fn find_most_effective(valves: &Valves, minutes: usize, state: State) -> (Vec<Action>, usize) {
-    let counter: usize = state.actions.iter().map(|a| a.2).sum();
-    if counter + 1 >= minutes {
-        return (
-            state.actions.to_vec(),
-            calculate_flow(valves, minutes, &state.actions),
-        );
-    }
-
-    let current = valves.get(&state.current).unwrap();
-
-    let mut variants = vec![];
-
-    for link in current
-        .links
-        .iter()
-        .filter(|link| !state.since_last_opened.contains(&link.to))
-    {
-        let valve = valves.get(&link.to).unwrap();
-
-        let mut state = state.clone();
-        state.move_to(&link);
-
-        if !state.opened.contains(&link.to) && valve.rate > 0 {
-            let mut state = state.clone();
-            state.open(&link.to);
-
-            variants.push(find_most_effective(valves, minutes, state));
+fn find(
+    path: &[Action],
+    valves: &Valves,
+    minutes_left: usize,
+    from_name: &str,
+    visited: &[String],
+    opened: &[String],
+) -> Option<(usize, Vec<Action>)> {
+    if minutes_left <= 1 || valves.len() <= 1 {
+        if path.is_empty() {
+            // println!("No path detected");
+            return None;
         }
 
-        variants.push(find_most_effective(valves, minutes, state));
+        // println!("Path is too long: {:?}", path);
+        let calc = calculate_flow(30, path, false);
+        // println!(
+        //     "{calc}, {:?}",
+        //     path.iter()
+        //         .filter(|l| match l {
+        //             Action::Open(_) => true,
+        //             _ => false,
+        //         })
+        //         .collect_vec()
+        // );
+        return Some((calc, path.to_vec()));
     }
 
-    variants
+    go(valves.clone(), from_name, &visited, &opened)
         .into_iter()
-        .max_by(|a, b| a.1.cmp(&b.1))
-        .unwrap_or((vec![], 0))
+        .filter(|(actions, _, _, _)| take_minutes(actions) < minutes_left)
+        .filter_map(|(actions, valves, visited, opened)| {
+            let mut path = path.clone().to_vec();
+            path.extend(actions.clone());
+            find(
+                &path,
+                &valves,
+                minutes_left - take_minutes(&actions) - 1,
+                &actions.last().unwrap().name(),
+                &visited,
+                &opened,
+            )
+        })
+        .max_by(|(a, _), (b, _)| a.cmp(b))
 }
 
-fn calculate_flow(valves: &Valves, minutes: usize, actions: &[Action]) -> usize {
+fn take_minutes(actions: &[Action]) -> usize {
+    actions.iter().map(|a| a.minutes()).sum()
+}
+
+fn calculate_flow(minutes: usize, actions: &[Action], debug: bool) -> usize {
     let mut add = 0;
     let mut output = 0;
 
-    let mut counter = 0;
-    for action in actions {
-        if action.2 + counter > minutes {
-            output += add * (minutes - counter);
-            counter += minutes - counter;
-            break;
-        } else {
-            output += add * action.2;
-            counter += action.2;
-        }
-
-        if action.0 == ActionType::Move {
-            continue;
-        }
-
-        let valve = valves.get(&action.1).unwrap();
-        add += valve.rate;
+    if debug {
+        let path = actions.iter().map(|a| format!("{a}")).join(" => ");
+        println!("\nActions: {:?}", path);
     }
 
-    if minutes > counter {
-        return output + add * (minutes - counter);
+    let mut left_minutes = minutes;
+    for action in actions {
+        if debug {
+            println!("{action}");
+        }
+
+        if left_minutes < action.minutes() {
+            break;
+        }
+
+        left_minutes -= action.minutes();
+
+        match action {
+            Action::Move(_) => {
+                output += add * action.minutes();
+            }
+            Action::Open(valve) => {
+                output += add;
+                add += valve.rate;
+            }
+        }
+
+        if debug {
+            println!("  After:   minutes left: {left_minutes},  add: {add},  output: {output}",);
+        }
+    }
+
+    if left_minutes > 0 {
+        output += add * left_minutes;
+        left_minutes = 0;
+    }
+
+    if debug {
+        println!("  End:     minutes left: {left_minutes},  add: {add},  output: {output}");
     }
 
     output
